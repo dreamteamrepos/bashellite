@@ -197,7 +197,6 @@ Sync_repository() {
     --delete-before \
     --delete-excluded \
     --ignore-existing \
-    --progress \
     --log-file="/var/log/bashellite/${repo_name}.$(date --iso-8601='seconds').log" \
     ${mirror_tld}/${repo_name}
 }
