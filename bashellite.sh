@@ -68,7 +68,7 @@ Usage() {
   echo "       -m mirror_top-level_directory"
   echo "       [-h]"
   echo "       [-d]"
-  echo "       [-r repository_name]" | [-a]
+  echo "       [-r repository_name] | [-a]"
   echo
   echo "       Mandatory Parameter(s):"
   echo "       -m:  Sets the disk mirror top-level directory."
@@ -97,8 +97,8 @@ Parse_parameters() {
    case "${passed_parameter}" in
       m)
         if [[ "${OPTARG:0:1}" != "/" ]]; then
-          err "\n!!! Absolute paths only, please; exiting.\n";
           Usage;
+          err "\n!!! Absolute paths only, please; exiting.\n";
           exit 1;
         else
           mirror_tld="${OPTARG}";
@@ -120,17 +120,25 @@ Parse_parameters() {
         exit 0;
         ;;
       *)
-        err "\n!!! Invalid option passed to \"$(basename ${0})\"; exiting. See Usage below.\n";
         Usage;
+        err "\n!!! Invalid option passed to \"$(basename ${0})\"; exiting. See Usage below.\n";
         exit 1;
         ;;
     esac
   done
   shift $((OPTIND-1));
+
+  # Exit if both -a and -r are passed and display usage
+  if [[ ${all_repos} && ${repo_name} ]]; then
+      Usage;
+      err "\n!!!The flags -a and -r are mutially exclusive. Use one or the other. exiting.\n"
+      exit 1;
+  fi
+
   # if the mirror_tld is unset or null; then exit.
   if [[ ! -n "${mirror_tld}" ]]; then
-    err "\n!!! Please set the desired location of the local mirror; exiting.\n";
     Usage;
+    err "\n!!! Please set the desired location of the local mirror; exiting.\n";
     exit 1;
   fi
 }
