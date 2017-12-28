@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### ceph
+### ceph-repo
 #
 ####################
 #

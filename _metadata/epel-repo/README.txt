@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### epel
+### epel-repo
 #
 ####################
 #

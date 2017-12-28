@@ -103,6 +103,7 @@ Parse_parameters() {
   unset mirror_tld;
   unset repo_name;
   unset dryrun;
+  unset dryrun_flag;
   unset all_repos;
   while getopts ":m:r:ahd" passed_parameter; do
    case "${passed_parameter}" in
@@ -125,7 +126,7 @@ Parse_parameters() {
 	repo_name="${OPTARG//[^a-zA-Z1-9_-/]}";
 	;;
       d)
-        dryrun="--dry-run";
+        dryrun="true";
         ;;
       a)
         all_repos="true"
@@ -182,8 +183,9 @@ Validate_repo_framework() {
     msg "Creating/validating directory and file structure for repo (${repo_name})...";
     mkdir -p ${mirror_tld}/_metadata/${repo_name}/;
     touch ${mirror_tld}/_metadata/${repo_name}/rsync_url.conf;
-    touch ${mirror_tld}/_metadata/${repo_name}/repo_excludes.conf;
-    touch ${mirror_tld}/_metadata/${repo_name}/web_url.conf;
+    touch ${mirror_tld}/_metadata/${repo_name}/http_url.conf;
+    touch ${mirror_tld}/_metadata/${repo_name}/repo_filter.conf;
+    touch ${mirror_tld}/_metadata/${repo_name}/dns_name.conf;
     touch ${mirror_tld}/_metadata/${repo_name}/README.txt
     mkdir -p ${mirror_tld}/${repo_name}/;
     mkdir -p /var/log/bashellite/;
@@ -192,18 +194,41 @@ Validate_repo_framework() {
 }
 
 # This function validates that a URL has been provided for the rsync repo.
+# The _metadata/ directory is relative to the bashellite script's location.
+# It is not relative to the mirror_tld, as one might think.
 Validate_repo_metadata() {
   msg "Validating repo (${repo_name}) metadata...";
-  if [[ -s "${mirror_tld}/_metadata/${repo_name}/rsync_url.conf" ]]; then
-    rsync_url="$(cat ${mirror_tld}/_metadata/${repo_name}/rsync_url.conf)";
-  elif [[ -s "$(realpath $(dirname ${0}))/_metadata/${repo_name}/rsync_url.conf" ]]; then
-    cp -f $(realpath $(dirname ${0}))/_metadata/${repo_name}/rsync_url.conf ${mirror_tld}/_metadata/${repo_name}/rsync_url.conf
-    rsync_url="$(cat ${mirror_tld}/_metadata/${repo_name}/rsync_url.conf)";
+  unset dryrun_flag
+  count=0;
+  for url_conf_file in $(realpath $( dirname ${0}))/_metadata/${repo_name}/*_url.conf; do
+    if [[ -s "${url_conf_file}" ]]; then
+      target_url_conf_file="${url_conf_file}"
+      count="$(( ++count))"
+      if [[ "${count}" -gt "1" ]]; then
+         err "More than one *_url.conf is populated for this repo (${repo_name}).";
+         err "Please ensure only ONE *_url.conf is populated at a time; exiting.";
+         exit 1;
+      fi
+    fi
+  done
+  if [[ -s "$(realpath $(dirname ${0}))/_metadata/${repo_name}/rsync_url.conf" ]]; then
+    rsync_url="$(cat $(realpath $(dirname ${0}))/_metadata/${repo_name}/rsync_url.conf)";
+    if [[ "${dryrun}" == "true" ]]; then
+      dryrun_flag="--dry-run";
+    fi
+  elif [[ -s "$(realpath $(dirname ${0}))/_metadata/${repo_name}/http_url.conf" ]]; then
+    http_url="$(cat $(realpath $(dirname ${0}))/_metadata/${repo_name}/http_url.conf)";
+    # Ensures consistency by dropping trailing "/" from $http_url.
+    http_url="${http_url%\/}";
+    if [[ "${dryrun}" == "true" ]]; then
+      dryrun_flag="--spider";
+    fi
   else
-    echo "Please place the rsync mirror URL of the repo in:";
-    echo " => ${mirror_tld}/_metadata/${repo_name}/rsync_url.conf";
-    echo "Please place any desired excluded paths/files in:";
-    echo " => ${mirror_tld}/_metadata/${repo_name}/repo_excludes.conf";
+    echo "Please place the mirror URL of the repo in ONE of the following only:";
+    echo " rsync => $(realpath $(dirname ${0}))/_metadata/${repo_name}/rsync_url.conf";
+    echo " http => $(realpath $(dirname ${0}))/_metadata/${repo_name}/http_url.conf";
+    echo "Please place any desired filter parameters, (aka includes and/or excludes), in:";
+    echo " => $(realpath $(dirname ${0}))/_metadata/${repo_name}/repo_filter.conf";
     exit 1;
   fi
 }
@@ -212,18 +237,42 @@ Validate_repo_metadata() {
 # This function performs the actual sync of the repository
 Sync_repository() {
   msg "Syncing from upstream mirror to local repo (${repo_name})...";
-  rsync -avSLP ${rsync_url} \
-    ${dryrun} \
-    --exclude-from="${mirror_tld}/_metadata/${repo_name}/repo_excludes.conf" \
-    --safe-links \
-    --hard-links \
-    --update \
-    --links \
-    --delete \
-    --delete-before \
-    --ignore-existing \
-    --log-file="/var/log/bashellite/${repo_name}.$(date --iso-8601='seconds').log" \
-    ${mirror_tld}/${repo_name}
+  if [[ -n ${rsync_url} ]]; then
+    rsync -avSLP ${rsync_url} \
+      ${dryrun_flag} \
+      --exclude-from="${mirror_tld}/_metadata/${repo_name}/repo_filter.conf" \
+      --safe-links \
+      --hard-links \
+      --update \
+      --links \
+      --delete \
+      --delete-before \
+      --ignore-existing \
+      --log-file="/var/log/bashellite/${repo_name}.$(date --iso-8601='seconds').log" \
+      ${mirror_tld}/${repo_name}
+  elif [[ -n ${http_url} ]]; then
+    for file_path in $(cat ${mirror_tld}/_metadata/${repo_name}/repo_filter.conf); do
+      if [[ "${dryrun}" == "true" ]]; then
+        wget ${dryrun_flag} ${http_url}/${file_path};
+        if [[ "${?}" == "0" ]]; then
+          msg "[DRYRUN] wget successfully downloaded file(s) from:"
+          msg "  => ${http_url}/${file_path}\n"
+        else
+          err "[DRYRUN] wget did NOT successfully download file(s) from:"
+          err "  => ${http_url}/${file_path}\n"
+        fi
+      else
+        wget -mk -nH -P ${repo_name} ${http_url}/${file_path};
+        if [[ "${?}" == "0" ]]; then
+          msg "[INFO] wget successfully downloaded file(s) from:"
+          msg "  => ${http_url}/${file_path}\n"
+        else
+          err "[INFO] wget did NOT successfully download file(s) from:"
+          err "  => ${http_url}/${file_path}\n"
+        fi
+      fi
+    done
+  fi
 }
 
 

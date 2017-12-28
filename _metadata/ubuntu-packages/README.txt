@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### ubuntu
+### ubuntu-packages
 #
 ####################
 #

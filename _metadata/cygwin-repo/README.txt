@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### cygwin
+### cygwin-repo
 #
 ####################
 #

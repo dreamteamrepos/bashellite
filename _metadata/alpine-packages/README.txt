@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### alpine
+### alpine-packages
 #
 ####################
 #

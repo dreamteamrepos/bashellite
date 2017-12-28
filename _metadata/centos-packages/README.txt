@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### centos
+### centos-packages
 #
 ####################
 #
