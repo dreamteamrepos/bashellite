@@ -1,7 +1,7 @@
 ####################
 #
 ### REPOSITORY DOCUMENTATION
-### official_pypi
+### pypi
 #
 ####################
 #
