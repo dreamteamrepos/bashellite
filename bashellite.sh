@@ -517,13 +517,14 @@ Sync_repository() {
       Info "  From => ${http_url}/${line}"
       Info "    To => ${mirror_tld}/${mirror_repo_name}/${line}"
       # wget unfortunately sends ALL output to STDERR.
-      Info "Running: wget ${wget_dryrun_flag} -nv --no-parent -nH -r --accept \"${wget_filename}\" -P "${mirror_tld}/${mirror_repo_name}/" "${http_url}/${wget_include_directory}" 2>&1"
+      Info "Running: wget ${wget_dryrun_flag} -nv --no-parent -nH -r -l 10 --accept \"${wget_filename}\" -P "${mirror_tld}/${mirror_repo_name}/" "${http_url}/${wget_include_directory}" 2>&1"
       wget \
         ${wget_dryrun_flag} \
         -nv \
         --no-parent \
         -nH \
         -r \
+        -l 10 \
         --accept "${wget_filename}" \
         -P "${mirror_tld}/${mirror_repo_name}/" \
         "${http_url}/${wget_include_directory}" \
