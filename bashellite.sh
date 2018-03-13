@@ -6,7 +6,7 @@
 ### Program Contributors: Eric Lake <EricLake@Gmail.com>
 #
 ### Program Version:
-    script_version="0.3.0-beta"
+    script_version="0.3.1-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
@@ -429,7 +429,7 @@ Ensure_sync_provider_installed() {
       git clone https://github.com/apt-mirror/apt-mirror.git ${script_dir}/_bin/${repo_name};
       chmod u+x ${script_dir}/_bin/${repo_name}/apt-mirror;
     fi
-    sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\"%" ${script_dir}/_bin/${repo_name}/apt-mirror;
+    sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\";%" ${script_dir}/_bin/${repo_name}/apt-mirror;
     sed -i "s%\"base_path\"   => .*%\"base_path\"   => '${script_dir}/_bin/${repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
     sed -i "s%\"mirror_path\" => .*%\"mirror_path\" => '${mirror_tld}/${mirror_repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
   # if pypi_url is populated, ensure pip and virtualenv are installed
