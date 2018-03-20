@@ -427,6 +427,8 @@ Ensure_sync_provider_installed() {
       rm -fr ${script_dir}/_bin/${repo_name}/ &>/dev/null;
       mkdir -p ${script_dir}/_bin/${repo_name}/;
       git clone https://github.com/apt-mirror/apt-mirror.git ${script_dir}/_bin/${repo_name};
+      mkdir ${script_dir}/_bin/${repo_name}/var
+      ln -s ${script_dir}/_bin/${repo_name}/postmirror.sh ${script_dir}/_bin/${repo_name}/var/postmirror.sh
       chmod u+x ${script_dir}/_bin/${repo_name}/apt-mirror;
     fi
     sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\";%" ${script_dir}/_bin/${repo_name}/apt-mirror;
