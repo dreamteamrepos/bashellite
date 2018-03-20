@@ -6,7 +6,7 @@
 ### Program Contributors: Eric Lake <EricLake@Gmail.com>
 #
 ### Program Version:
-    script_version="0.3.2-beta"
+    script_version="0.3.3-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
@@ -427,7 +427,10 @@ Ensure_sync_provider_installed() {
       rm -fr ${script_dir}/_bin/${repo_name}/ &>/dev/null;
       mkdir -p ${script_dir}/_bin/${repo_name}/;
       git clone https://github.com/apt-mirror/apt-mirror.git ${script_dir}/_bin/${repo_name};
+      mkdir ${script_dir}/_bin/${repo_name}/var
+      ln -s ${script_dir}/_bin/${repo_name}/postmirror.sh ${script_dir}/_bin/${repo_name}/var/postmirror.sh
       chmod u+x ${script_dir}/_bin/${repo_name}/apt-mirror;
+      chmod u+x ${script_dir}/_bin/${repo_name}/var/postmirror.sh
     fi
     sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\";%" ${script_dir}/_bin/${repo_name}/apt-mirror;
     sed -i "s%\"base_path\"   => .*%\"base_path\"   => '${script_dir}/_bin/${repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
