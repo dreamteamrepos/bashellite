@@ -430,6 +430,7 @@ Ensure_sync_provider_installed() {
       mkdir ${script_dir}/_bin/${repo_name}/var
       ln -s ${script_dir}/_bin/${repo_name}/postmirror.sh ${script_dir}/_bin/${repo_name}/var/postmirror.sh
       chmod u+x ${script_dir}/_bin/${repo_name}/apt-mirror;
+      chmod u+x ${script_dir}/_bin/${repo_name}/var/postmirror.sh
     fi
     sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\";%" ${script_dir}/_bin/${repo_name}/apt-mirror;
     sed -i "s%\"base_path\"   => .*%\"base_path\"   => '${script_dir}/_bin/${repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
