@@ -6,7 +6,7 @@
 ### Program Contributors: Eric Lake <EricLake@Gmail.com>
 #
 ### Program Version:
-    script_version="0.3.3-beta"
+    script_version="0.3.4-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
@@ -69,6 +69,7 @@ Check_deps() {
              touch \
              cat \
              sed \
+             ln \
              tee;
   do
     which ${dep} &>/dev/null \
@@ -89,6 +90,7 @@ Ensure_gnu_deps() {
              touch \
              cat \
              sed \
+             ln \
              tee;
   do
     grep "GNU" <<<"$(${dep} --version 2>&1)" &>/dev/null \
