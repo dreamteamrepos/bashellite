@@ -56,6 +56,7 @@ Installation
    - `touch`
    - `cat`
    - `sed`
+   - `ln`
    - `tee`
  - Ensure `rsync` is installed if you would like to sync from rsync mirrors
  - Ensure `wget` is  installed if you would like to sync from http/https mirrors
