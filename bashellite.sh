@@ -6,7 +6,7 @@
 ### Program Contributors: Eric Lake <EricLake@Gmail.com>
 #
 ### Program Version:
-    script_version="0.3.4-beta"
+    script_version="0.3.5-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
