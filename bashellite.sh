@@ -531,25 +531,27 @@ Sync_repository() {
       Info "  From => ${http_url}/${line}"
       Info "    To => ${mirror_tld}/${mirror_repo_name}/${line}"
       wget_args="";
-      wget_args="${wget_dryrun_flag} ";
-      wget_args="${wget_args} -nv -nH -e robots=off -N ";
-      wget_args="${wget_args} ${recurse_flag} ";
-      wget_args="${wget_args} --reject \"index*\" "
+      wget_args="${wget_dryrun_flag}";
+      wget_args="${wget_args} -nv -nH -e robots=off -N";
+      wget_args="${wget_args} ${recurse_flag}";
       # If we have a non-recursive file specified, don't use the --accept option
       if [[ ${recurse_flag} != "" ]]; then
-        wget_args="${wget_args} --accept \"${wget_filename}\" ";
+        wget_args="${wget_args} --accept \"${wget_filename}\"";
+        wget_args="${wget_args} --reject \"index*\""
       fi
-      wget_args="${wget_args} -P \"${mirror_tld}/${mirror_repo_name}/\" ";
+      wget_args="${wget_args} -P \"${mirror_tld}/${mirror_repo_name}/\"";
       # If we have a non-recursive file specified, change how we set the url
       if [[ ${recurse_flag} == "" ]]; then
-        wget_args="${wget_args} \"${http_url}/${wget_include_directory}${wget_filename}\" >2&1 "
+        wget_args="${wget_args} \"${http_url}/${wget_include_directory}${wget_filename}\" "
       else
-        wget_args="${wget_args} \"${http_url}/${wget_include_directory}\" >2&1 "
+        wget_args="${wget_args} \"${http_url}/${wget_include_directory}\" "
       fi
-
-      Info "Running: wget ${wget_args}"
       
-      echo ${wget_args} | xargs wget | grep -oP "(?<=(URL: ))http.*(?=(\s*200 OK$))" \
+      # wget unfortunately sends ALL output to STDERR.
+      Info "Running: wget ${wget_args}"
+
+      echo ${wget_args} | xargs wget 2>&1 \
+      | grep -oP "(?<=(URL: ))http.*(?=(\s*200 OK$))" \
       | while read url; do Info "Downloaded $url"; done
       if [[ "${PIPESTATUS[1]}" == "0" ]]; then
         Info "wget successfully downloaded file(s):"
