@@ -3,10 +3,10 @@
 ### Program Name: Bashellite
 #
 ### Program Author: Cody Lee Cochran <Cody.L.Cochran@gmail.com>
-### Program Contributors: Eric Lake <EricLake@Gmail.com>
+### Program Contributors: Eric Lake <EricLake@Gmail.com>, Patrick Chandler <pc.seanmckay@gmail.com>
 #
 ### Program Version:
-    script_version="0.3.5-beta"
+    script_version="0.3.6-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
