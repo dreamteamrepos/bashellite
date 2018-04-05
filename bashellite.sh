@@ -70,7 +70,6 @@ Check_deps() {
              cat \
              sed \
              ln \
-             xargs \
              tee;
   do
     which ${dep} &>/dev/null \
@@ -92,7 +91,6 @@ Ensure_gnu_deps() {
              cat \
              sed \
              ln \
-             xargs \
              tee;
   do
     grep "GNU" <<<"$(${dep} --version 2>&1)" &>/dev/null \
@@ -501,8 +499,17 @@ Sync_repository() {
    # If http_url is set, use wget to sync
   elif [[ -n "${http_url}" ]]; then
     # Change IFS so that only newline is word delimiter for repo_filter.conf processing
-    IFS=$'\n';
+    IFS=$'\n'
+    filter_array_count=0
+    filter_array=()
     for line in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
+      filter_array[${filter_array_count}]=${line};
+      filter_array_count=$[${filter_array_count}+1]
+    done
+    unset IFS
+
+    for (( i=0; i<${#filter_array[@]}; i++ )); do
+      line=${filter_array[${i}]}
       # recurse_flag will be set for each line if "r " is at the beginning of the line
       recurse_flag="";
       if [[ "${line:0:2}" == "r " ]]; then
@@ -530,27 +537,29 @@ Sync_repository() {
       Info "Attempting to download file(s):"
       Info "  From => ${http_url}/${line}"
       Info "    To => ${mirror_tld}/${mirror_repo_name}/${line}"
-      wget_args="";
-      wget_args="${wget_dryrun_flag}";
-      wget_args="${wget_args} -nv -nH -e robots=off -N";
-      wget_args="${wget_args} ${recurse_flag}";
+      wget_args=""
+      wget_args="${wget_dryrun_flag}"
+      wget_args="${wget_args} -nv -nH -e robots=off -N"
+      wget_args="${wget_args} ${recurse_flag}"
       # If we have a non-recursive file specified, don't use the --accept option
       if [[ ${recurse_flag} != "" ]]; then
-        wget_args="${wget_args} --accept \"${wget_filename}\"";
-        wget_args="${wget_args} --reject \"index*\""
+        wget_args="${wget_args} --accept "${wget_filename}""
+        wget_args="${wget_args} --reject "index*""
       fi
-      wget_args="${wget_args} -P \"${mirror_tld}/${mirror_repo_name}/\"";
+      wget_args="${wget_args} -P "${mirror_tld}/${mirror_repo_name}/""
       # If we have a non-recursive file specified, change how we set the url
       if [[ ${recurse_flag} == "" ]]; then
-        wget_args="${wget_args} \"${http_url}/${wget_include_directory}${wget_filename}\" "
+        wget_args="${wget_args} "${http_url}/${wget_include_directory}${wget_filename}" "
       else
-        wget_args="${wget_args} \"${http_url}/${wget_include_directory}\" "
+        wget_args="${wget_args} "${http_url}/${wget_include_directory}" "
       fi
       
       # wget unfortunately sends ALL output to STDERR.
       Info "Running: wget ${wget_args}"
 
-      echo ${wget_args} | xargs wget 2>&1 \
+      #echo ${wget_args} | xargs wget 2>&1 \
+      set -f
+      wget ${wget_args} 2>&1 \
       | grep -oP "(?<=(URL: ))http.*(?=(\s*200 OK$))" \
       | while read url; do Info "Downloaded $url"; done
       if [[ "${PIPESTATUS[1]}" == "0" ]]; then
@@ -562,8 +571,8 @@ Sync_repository() {
         Warn "  From => ${http_url}/${line}"
         Warn "    To => ${mirror_tld}/${mirror_repo_name}/${line}"
       fi
+      set +f
     done
-    unset IFS;
     unset http_url;
   # If aptmirror_url is set, use customized apt-mirror script to sync
   elif [[ -n "${aptmirror_url}" ]]; then
