@@ -172,7 +172,6 @@ Fail() {
   else
     echo -e "${mkwht}${timestamp} ${mkred}[FAIL] $*${mkclr}" >&2;
   fi
-  ${mkclr};
   exit 1;
 }
 
