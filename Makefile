@@ -14,7 +14,8 @@ install:
 	mkdir -p $(DESTDIR)$(CONFDIR)
 	cp -r _metadata/* $(DESTDIR)$(CONFDIR)
 	mkdir -p $(DESTDIR)$(LOGDIR)
-	chown bashellite $(DESTDIR)$(LOGDIR)
+	chown -R bashellite:bashellite $(DESTDIR)$(LOGDIR)
+	chown -R bashellite:bashellite $(DESTDIR)$(CONFDIR)
 
 docs:
 	mkdir -p $(DESTDIR)$(DOCDIR)
