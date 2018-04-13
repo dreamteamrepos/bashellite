@@ -2,7 +2,7 @@ VERSION := 0.0.1
 PREFIX := /usr/local
 CONFDIR := /etc/bashellite
 LOGDIR := /var/log/bashellite
-DOCDIR := usr/share/doc
+DOCDIR := /usr/share/doc
 
 all: user install docs
 
@@ -18,7 +18,7 @@ install:
 
 docs:
 	mkdir -p $(DESTDIR)$(DOCDIR)
-	install -m 644 -DREADME.md LICENSE $(DESTDIR)$(DOCDIR)
+	install -m 644 -D README.md LICENSE $(DESTDIR)$(DOCDIR)
 
 uninstall:
 	rm -rf $(DESTDIR)$(PREFIX)/sbin/bashellite
