@@ -6,7 +6,7 @@
 ### Program Contributors: Eric Lake <EricLake@Gmail.com>, Patrick Chandler <pc.seanmckay@gmail.com>
 #
 ### Program Version:
-    script_version="0.3.6-beta"
+    script_version="0.3.7-beta"
 #
 ### Program Purpose:
 #   The purpose of this program is to create an automated method for pulling
@@ -131,12 +131,6 @@ Get_run_id() {
   fi
 }
 
-# This one isn't needed right away, so it's checked later after robust logging starts
-Get_script_dir(){
-  script_dir="$(realpath $(dirname ${0}))";
-}
-
-
 # These functions are used to generate colored output
 #  Info is green, Warn is yellow, Fail is red.
 Set_colors() {
@@ -214,6 +208,7 @@ Parse_parameters() {
   unset repo_name;
   unset dryrun;
   unset all_repos;
+  unset metadata_tld
 
   # Bash-builtin getopts is used to perform parsing, so no long options are used.
   while getopts ":m:r:ahd" passed_parameter; do
@@ -258,7 +253,7 @@ Parse_parameters() {
 Determine_scope() {
   unset repo_name_array;
   if [[ "${all_repos}" == "true" ]]; then
-    repo_name_array=( $(ls ${script_dir}/_metadata/) );
+    repo_name_array=( $(ls ${metadata_tld}/) );
   else
     repo_name_array=( ${target_repo_name} );
   fi
@@ -284,23 +279,11 @@ Determine_scope() {
 #
 ################################################################################
 
-# This function ensures you are root and/or have sudo access.
-Check_user() {
-  if [[ "${EUID}" != "0" ]]; then
-    Fail "This script must be run as root and/or with sudo.";
-  fi
-}
-
 Validate_variables() {
 
   # Ensures repo_name_array is not empty
   if [[ -z "${repo_name_array}" ]]; then
     Fail "Bashellite requires at least one valid repository.";
-  fi
-
-  # Ensures script_dir is set.
-  if [[ -z "${script_dir}" ]]; then
-    Fail "Failed to set script_dir variable; exiting.";
   fi
 
   # Exit if both -a and -r are passed and display usage
@@ -319,35 +302,28 @@ Validate_variables() {
   fi
 }
 
-# Ensuring _metadata/ subdirectory exists in user-passed ${mirror_tld}.
-Validate_mirror_framework() {
-    Info "Creating/validating directory for mirror...";
-    mkdir -p ${script_dir}/_metadata;
-    mkdir -p ${mirror_tld};
-    mkdir -p /var/log/bashellite/;
-    chown root:root /var/log/bashellite;
-}
-
 # This function creates/validates the file/directory framework for the requested repo.
 Validate_repo_framework() {
+  metadata_tld="/etc/bashellite";
+  bin_tld="/home/bashellite/.bashellite/bin"
   if [[ -n "${repo_name}" ]]; then
     Info "Creating/validating directory and file structure for repo (${repo_name})...";
-    mkdir -p ${script_dir}/_metadata/${repo_name}/;
-    mkdir -p ${script_dir}/_bin/;
-    touch ${script_dir}/_metadata/${repo_name}/rsync_url.conf;
-    touch ${script_dir}/_metadata/${repo_name}/http_url.conf;
-    touch ${script_dir}/_metadata/${repo_name}/aptmirror_url.conf;
-    touch ${script_dir}/_metadata/${repo_name}/pypi_url.conf;
-    touch ${script_dir}/_metadata/${repo_name}/repo_filter.conf;
-    touch ${script_dir}/_metadata/${repo_name}/dns_name.conf;
-    touch ${script_dir}/_metadata/${repo_name}/README.txt
+    mkdir -p ${metadata_tld}/${repo_name}/;
+    mkdir -p ${bin_tld};
+    touch ${metadata_tld}/${repo_name}/rsync_url.conf;
+    touch ${metadata_tld}/${repo_name}/http_url.conf;
+    touch ${metadata_tld}/${repo_name}/aptmirror_url.conf;
+    touch ${metadata_tld}/${repo_name}/pypi_url.conf;
+    touch ${metadata_tld}/${repo_name}/repo_filter.conf;
+    touch ${metadata_tld}/${repo_name}/dns_name.conf;
+    touch ${metadata_tld}/${repo_name}/README.txt
     mirror_repo_name="${repo_name//__/\/}";
     mkdir -p ${mirror_tld}/${mirror_repo_name}/;
   fi
 }
 
 # This function validates that a URL has been provided for the rsync repo.
-# The _metadata/ directory is relative to the bashellite script's location.
+# The metadata directory is relative to the bashellite script's location.
 # It is not relative to the mirror_tld, as one might think.
 Validate_repo_metadata() {
   # Sanitizing variables
@@ -360,7 +336,7 @@ Validate_repo_metadata() {
   Info "Validating repo (${repo_name}) metadata...";
 
   # Ensuring two (or more) *_url.conf files are not populated.
-  for url_conf_file in ${script_dir}/_metadata/${repo_name}/*_url.conf; do
+  for url_conf_file in ${metadata_tld}/${repo_name}/*_url.conf; do
     if [[ -s "${url_conf_file}" ]]; then
       target_url_conf_file="${url_conf_file}"
       count="$(( ++count))"
@@ -372,25 +348,25 @@ Validate_repo_metadata() {
   done
 
   # Parsing populated *_url.conf file and setting variable values accordingly.
-  if [[ -s "${script_dir}/_metadata/${repo_name}/rsync_url.conf" ]]; then
-    rsync_url="$(cat ${script_dir}/_metadata/${repo_name}/rsync_url.conf)";
-  elif [[ -s "${script_dir}/_metadata/${repo_name}/http_url.conf" ]]; then
-    http_url="$(cat ${script_dir}/_metadata/${repo_name}/http_url.conf)";
+  if [[ -s "${metadata_tld}/${repo_name}/rsync_url.conf" ]]; then
+    rsync_url="$(cat ${metadata_tld}/${repo_name}/rsync_url.conf)";
+  elif [[ -s "${metadata_tld}/${repo_name}/http_url.conf" ]]; then
+    http_url="$(cat ${metadata_tld}/${repo_name}/http_url.conf)";
     # Ensures consistency by dropping trailing "/" from $http_url.
     http_url="${http_url%\/}";
-  elif [[ -s "${script_dir}/_metadata/${repo_name}/pypi_url.conf" ]]; then
-    pypi_url="$(cat ${script_dir}/_metadata/${repo_name}/pypi_url.conf)";
-  elif [[ -s "${script_dir}/_metadata/${repo_name}/aptmirror_url.conf" ]]; then
-    aptmirror_url="$(cat ${script_dir}/_metadata/${repo_name}/aptmirror_url.conf)";
+  elif [[ -s "${metadata_tld}/${repo_name}/pypi_url.conf" ]]; then
+    pypi_url="$(cat ${metadata_tld}/${repo_name}/pypi_url.conf)";
+  elif [[ -s "${metadata_tld}/${repo_name}/aptmirror_url.conf" ]]; then
+    aptmirror_url="$(cat ${metadata_tld}/${repo_name}/aptmirror_url.conf)";
   else
     Warn "Please place the mirror URL of the repo in ONE of the following only:";
-    Warn " rsync => ${script_dir}/_metadata/${repo_name}/rsync_url.conf";
-    Warn " http => ${script_dir}/_metadata/${repo_name}/http_url.conf";
-    Warn " pypi => ${script_dir}/_metadata/${repo_name}/pypi_url.conf";
-    Warn " aptmirror => ${script_dir}/_metadata/${repo_name}/aptmirror_url.conf";
+    Warn " rsync => ${metadata_tld}/${repo_name}/rsync_url.conf";
+    Warn " http => ${metadata_tld}/${repo_name}/http_url.conf";
+    Warn " pypi => ${metadata_tld}/${repo_name}/pypi_url.conf";
+    Warn " aptmirror => ${metadata_tld}/${repo_name}/aptmirror_url.conf";
     Warn "Please place any desired filter parameters, (aka includes and/or excludes), in:";
-    Warn " => ${script_dir}/_metadata/${repo_name}/repo_filter.conf";
-    Fail "Place the URL(s) of the repo (${repo_name}) in one, and ONLY one, \"_metadata/*_url.conf\" file and try again.";
+    Warn " => ${metadata_tld}/${repo_name}/repo_filter.conf";
+    Fail "Place the URL(s) of the repo (${repo_name}) in one, and ONLY one, \"${script_name}/${repo_name}/<provider>_url.conf\" file and try again.";
   fi
 }
 
@@ -420,21 +396,21 @@ Ensure_sync_provider_installed() {
     else
       Fail "wget does NOT appear to be installed and/or in the path; exiting.";
     fi
-    if [[ -e "${script_dir}/_bin/${repo_name}/apt-mirror" ]]; then
+    if [[ -e "${bin_tld}/${repo_name}/apt-mirror" ]]; then
       Info "apt-mirror appears to be installed for this repo (${repo_name})...";
     else
       Warn "apt-mirror does NOT appear to be installed, for repo (${repo_name}); installing...";
-      rm -fr ${script_dir}/_bin/${repo_name}/ &>/dev/null;
-      mkdir -p ${script_dir}/_bin/${repo_name}/;
-      git clone https://github.com/apt-mirror/apt-mirror.git ${script_dir}/_bin/${repo_name};
-      mkdir ${script_dir}/_bin/${repo_name}/var
-      ln -s ${script_dir}/_bin/${repo_name}/postmirror.sh ${script_dir}/_bin/${repo_name}/var/postmirror.sh
-      chmod u+x ${script_dir}/_bin/${repo_name}/apt-mirror;
-      chmod u+x ${script_dir}/_bin/${repo_name}/var/postmirror.sh
+      rm -fr ${bin_tld}/${repo_name}/ &>/dev/null;
+      mkdir -p ${bin_tld}/${repo_name}/;
+      git clone https://github.com/apt-mirror/apt-mirror.git ${bin_tld}/${repo_name};
+      mkdir ${bin_tld}/${repo_name}/var
+      ln -s ${bin_tld}/${repo_name}/postmirror.sh ${bin_tld}/${repo_name}/var/postmirror.sh
+      chmod u+x ${bin_tld}/${repo_name}/apt-mirror;
+      chmod u+x ${bin_tld}/${repo_name}/var/postmirror.sh
     fi
-    sed -i "s%^\$config_file = .*%\$config_file = \"${script_dir}/_metadata/${repo_name}/aptmirror_url.conf\";%" ${script_dir}/_bin/${repo_name}/apt-mirror;
-    sed -i "s%\"base_path\"   => .*%\"base_path\"   => '${script_dir}/_bin/${repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
-    sed -i "s%\"mirror_path\" => .*%\"mirror_path\" => '${mirror_tld}/${mirror_repo_name}',%" ${script_dir}/_bin/${repo_name}/apt-mirror;
+    sed -i "s%^\$config_file = .*%\$config_file = \"${metadata_tld}/${repo_name}/aptmirror_url.conf\";%" ${bin_tld}/${repo_name}/apt-mirror;
+    sed -i "s%\"base_path\"   => .*%\"base_path\"   => '${bin_tld}/${repo_name}',%" ${bin_tld}/${repo_name}/apt-mirror;
+    sed -i "s%\"mirror_path\" => .*%\"mirror_path\" => '${mirror_tld}/${mirror_repo_name}',%" ${bin_tld}/${repo_name}/apt-mirror;
   # if pypi_url is populated, ensure pip and virtualenv are installed
   elif [[ -n "${pypi_url}" ]]; then
     which pip &>/dev/null;
@@ -446,19 +422,19 @@ Ensure_sync_provider_installed() {
       Fail "Can not proceed until virutalenv is installed and accessible in path; exiting."
     fi
     # If pip and virtualenv are installed, ensure bandersnatch is installed in proper location, and functional.
-    ${script_dir}/_bin/${repo_name}/bin/bandersnatch --help &>/dev/null;
+    ${bin_tld}/${repo_name}/bin/bandersnatch --help &>/dev/null;
     if [[ "${?}" != "0" ]]; then
       # If bandersnatch is not installed, or broken, blow away the old one, (if required), and install a new one.
       Warn "bandersnatch does NOT appear to be installed, (or it is broken), for repo (${repo_name}); (re)installing...";
-      rm -fr ${script_dir}/_bin/${repo_name}/ &>/dev/null;
-      virtualenv --python=python3.5 ${script_dir}/_bin/${repo_name};
-      ${script_dir}/_bin/${repo_name}/bin/pip install -r https://bitbucket.org/pypa/bandersnatch/raw/stable/requirements.txt;
-      ${script_dir}/_bin/${repo_name}/bin/bandersnatch -c "${script_dir}/_bin/${repo_name}/bandersnatch.conf";
-      ${script_dir}/_bin/${repo_name}/bin/bandersnatch --help &>/dev/null;
+      rm -fr ${bin_tld}/${repo_name}/ &>/dev/null;
+      virtualenv --python=python3.5 ${bin_tld}/${repo_name};
+      ${bin_tld}/${repo_name}/bin/pip install -r https://bitbucket.org/pypa/bandersnatch/raw/stable/requirements.txt;
+      ${bin_tld}/${repo_name}/bin/bandersnatch -c "${bin_tld}/${repo_name}/bandersnatch.conf";
+      ${bin_tld}/${repo_name}/bin/bandersnatch --help &>/dev/null;
     fi
-    sed -i "s%^\s*master\s*=.*%master = ${pypi_url}%g" ${script_dir}/_bin/${repo_name}/bandersnatch.conf;
-    sed -i "s%^\s*directory\s*=.*%directory = ${mirror_tld}/${mirror_repo_name}%g" ${script_dir}/_bin/${repo_name}/bandersnatch.conf;
-    ${script_dir}/_bin/${repo_name}/bin/bandersnatch --help &>/dev/null;
+    sed -i "s%^\s*master\s*=.*%master = ${pypi_url}%g" ${bin_tld}/${repo_name}/bandersnatch.conf;
+    sed -i "s%^\s*directory\s*=.*%directory = ${mirror_tld}/${mirror_repo_name}%g" ${bin_tld}/${repo_name}/bandersnatch.conf;
+    ${bin_tld}/${repo_name}/bin/bandersnatch --help &>/dev/null;
     if [[ "${?}" == "0" ]]; then
       Info "bandersnatch installed successfully for repo (${repo_name})...";
     else
@@ -479,7 +455,7 @@ Sync_repository() {
     fi
     rsync -avSLP ${rsync_url} \
       ${dryrun_flag} \
-      --exclude-from="${script_dir}/_metadata/${repo_name}/repo_filter.conf" \
+      --exclude-from="${metadata_tld}/${repo_name}/repo_filter.conf" \
       --safe-links \
       --no-motd \
       --hard-links \
@@ -501,7 +477,7 @@ Sync_repository() {
     IFS=$'\n'
     filter_array_count=0
     filter_array=()
-    for line in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
+    for line in $(cat ${metadata_tld}/${repo_name}/repo_filter.conf); do
       filter_array[${filter_array_count}]=${line};
       filter_array_count=$[${filter_array_count}+1]
     done
@@ -552,7 +528,7 @@ Sync_repository() {
       else
         wget_args="${wget_args} "${http_url}/${wget_include_directory}" "
       fi
-      
+
       # wget unfortunately sends ALL output to STDERR.
       Info "Running: wget ${wget_args}"
 
@@ -576,7 +552,7 @@ Sync_repository() {
   # If aptmirror_url is set, use customized apt-mirror script to sync
   elif [[ -n "${aptmirror_url}" ]]; then
     if [[ ! ${dryrun} ]]; then
-      exec ${script_dir}/_bin/${repo_name}/apt-mirror;
+      exec ${bin_tld}/${repo_name}/apt-mirror;
     fi
     if [[ "${?}" != "0" ]]; then
       Warn "apt-mirror either failed or completed with errors for repo (${repo_name})."
@@ -598,7 +574,7 @@ Sync_repository() {
       Info "Proceeding with sync of repo (${repo_name})..."
       Info "Sync of repo (${repo_name}) completed without error..."
       # After dryrun completes, dryrun the removal of excluded packages
-      for pkg_name in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
+      for pkg_name in $(cat ${metadata_tld}/${repo_name}/repo_filter.conf); do
         Info "Attempting to remove excluded package (${pkg_name})...";
         if [[ -e "${mirror_tld}/${mirror_repo_name}/web/simple/${pkg_name}/index.html" ]]; then
           for pkg_version in $(grep -oP "packages/.*(?=(#))" ${mirror_tld}/${mirror_repo_name}/web/simple/${pkg_name}/index.html); do
@@ -612,14 +588,14 @@ Sync_repository() {
     # If dryrun is not true, perform real run
     else
       Info "Proceeding with sync of repo (${repo_name})..."
-      ${script_dir}/_bin/${repo_name}/bin/bandersnatch -c "${script_dir}/_bin/${repo_name}/bandersnatch.conf" mirror;
+      ${bin_tld}/${repo_name}/bin/bandersnatch -c "${bin_tld}/${repo_name}/bandersnatch.conf" mirror;
       if [[ "${?}" == "0" ]]; then
         Info "Sync of repo (${repo_name}) completed without error...";
       else
         Warn "Sync of repo (${repo_name}) did NOT complete without error...";
       fi
       # After run completes, remove excluded packages
-      for pkg_name in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
+      for pkg_name in $(cat ${metadata_tld}/${repo_name}/repo_filter.conf); do
         Info "Attempting to remove excluded package (${pkg_name})...";
         if [[ -e "${mirror_tld}/${mirror_repo_name}/web/simple/${pkg_name}/index.html" ]]; then
           for pkg_version in $(grep -oP "packages/.*(?=(#))" ${mirror_tld}/${mirror_repo_name}/web/simple/${pkg_name}/index.html); do
@@ -673,7 +649,6 @@ Check_deps \
 && Ensure_gnu_deps \
 && Get_date \
 && Get_run_id \
-&& Get_script_dir \
 && Set_colors \
 && Parse_parameters ${@} \
 && Determine_scope \
@@ -683,9 +658,8 @@ Check_deps \
 if [[ "${?}" == "0" ]]; then
   for repo_name in ${repo_name_array[@]}; do
   Info "Starting Bashellite run (${run_id}) for repo (${repo_name})..."
-    for task in Check_user \
+    for task in \
                 Validate_variables \
-                Validate_mirror_framework \
                 Validate_repo_framework \
                 Validate_repo_metadata \
                 Ensure_sync_provider_installed \
@@ -703,4 +677,3 @@ else
   exit 1;
 fi
 ################################################################################
-
