@@ -3,6 +3,8 @@ PREFIX := /usr/local
 CONFDIR := /etc/bashellite
 LOGDIR := /var/log/bashellite
 DOCDIR := /usr/share/doc
+DATADIR := /var/www/bashellite
+PROVIDERDIR := /opt/bashellite/providers.d
 
 all: user install docs
 
@@ -14,7 +16,11 @@ install:
 	mkdir -p $(DESTDIR)$(CONFDIR)
 	cp -r _metadata/* $(DESTDIR)$(CONFDIR)
 	mkdir -p $(DESTDIR)$(LOGDIR)
-	chown bashellite $(DESTDIR)$(LOGDIR)
+	mkdir -p $(DESTDIR)$(DATADIR)
+	mkdir -p $(DESTDIR)$(PROVIDERDIR)
+	chown -R bashellite:bashellite $(DESTDIR)$(LOGDIR)
+	chown -R bashellite:bashellite $(DESTDIR)$(DATADIR)
+	chown -R bashellite:bashellite $(DESTDIR)$(PROVIDERDIR)
 
 docs:
 	mkdir -p $(DESTDIR)$(DOCDIR)
