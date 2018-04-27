@@ -1,90 +1,297 @@
 #!/bin/bash
 
-mirror_tld=$(pwd)
-mirror_repo_name="docker-registry"
-dryrun=""
+### Program Version:
+    script_version="0.1.0-beta"
 
-if [[ -e ${1} ]]; then
-  mirror_tld=${1}
-fi
+# Sets timestamp used in log file lines and log file names and other functions
+Get_time() {
+  timestamp="$(date --iso-8601='ns' 2>/dev/null)";
+  timestamp="${timestamp//[^0-9]}";
+  timestamp="${timestamp:8:8}";
+  if [[ -z "${timestamp}" ]]; then
+    echo "[FAIL] Failed to set timestamp; ensure date supports \"--iso-8601\" flag!";
+    exit 1;
+  fi
+}
 
-if [[ -e ${2} ]]; then
-  mirror_repo_name=${2}
-fi
+# These functions are used to generate colored output
+#  Info is green, Warn is yellow, Fail is red.
+Set_colors() {
+  mkclr="$(tput sgr0)";
+  mkwht="$(tput setaf 7)";
+  mkgrn="$(tput setaf 2)";
+  mkylw="$(tput setaf 3)";
+  mkred="$(tput setaf 1)";
+}
 
-if [[ -e ${3} ]]; then
-  dryrun=${3}
-fi
-
-if [[ ! -d ${mirror_repo_name} ]]; then
-  mkdir ${mirror_repo_name}
-fi
-
-echo "Running registry container with mounted volume: ${mirror_tld}/${mirror_repo_name}/"
-echo "Command: docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2"
-if [[ ${dryrun} == "" ]]; then
-  # Only run registry container if not a dry run
-  docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2
-fi
-for line in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
-  # Check to see it tags are listed
-  tag_index=0
-  tag_index=`expr index "${line}" ':'`
-  tags_found=""
-  tags_found="${line:${tag_index}}"
-  
-  if [[ ${tag_index} == 0 ]]; then
-    # No tags found, downloading latest tag for image
-    echo "Pulling latest tag for image: ${line}"
-    echo "Command: docker pull ${docker_registry_url}/${line}:latest"
-    if [[ ${dryrun} == "" ]]; then
-      # Only pull if not a dry run
-      docker pull ${docker_registry_url}/${line}:latest
-    fi
-    echo "Pushing latest tag for image: ${line} to local registry container"
-    echo "Command 1: docker tag ${line}:latest localhost:5000/${line}:latest"
-    echo "Command 2: docker push localhost:5000/${line}:latest"
-    if [[ ${dryrun} == "" ]]; then
-      # Only tag and push if not a dry run
-      docker tag ${line}:latest localhost:5000/${line}:latest
-      docker push localhost:5000/${line}:latest
-    fi
-  elif [[ ${tag_index} == 1 || ${tags_found} == "" ]]; then
-    echo "Invalid image/tag format found: ${line}, skipping..."
+Info() {
+  Get_time;
+  if [[ ${dryrun} ]]; then
+    echo -e "${mkwht}${timestamp} ${mkgrn}[DRYRUN|INFO] $*${mkclr}";
   else
-    # Tags found
-    echo "Tags found"
-    IFS=$',\n'
-    tags_array=( ${tags_found} )
-    unset IFS
-    image_name=""
-    image_name="${line:0:${tag_index} - 1}"
-    for each_tag in ${tags_array[@]}; do
-      echo "Pulling tag: ${each_tag} for image: ${image_name}"
-      echo "Command: docker pull ${docker_registry_url}/${image_name}:${each_tag}"
+    echo -e "${mkwht}${timestamp} ${mkgrn}[INFO] $*${mkclr}";
+  fi
+}
+
+Warn() {
+  Get_time;
+  if [[ ${dryrun} ]]; then
+    echo -e "${mkwht}${timestamp} ${mkylw}[DRYRUN|WARN] $*${mkclr}" >&2;
+  else
+    echo -e "${mkwht}${timestamp} ${mkylw}[WARN] $*${mkclr}" >&2;
+  fi
+}
+
+Fail() {
+  Get_time;
+  if [[ ${dryrun} ]]; then
+    echo -e "${mkwht}${timestamp} ${mkred}[DRYRUN|FAIL] $*${mkclr}" >&2;
+  else
+    echo -e "${mkwht}${timestamp} ${mkred}[FAIL] $*${mkclr}" >&2;
+  fi
+  exit 1;
+}
+
+# This function prints usage messaging to STDOUT when invoked.
+Usage() {
+  echo
+  echo "Usage: $(basename ${0}) v${script_version}"
+  echo "       [-m mirror_top-level_directory]"
+  echo "       [-h]"
+  echo "       [-d]"
+  echo "       [-r repository_name]"
+  echo
+  echo
+  echo "       Optional Parameter(s):"
+  echo "       -m:  Sets a temporary disk mirror top-level directory."
+  echo "            Only absolute (full) paths are accepted!"
+  echo "       -h:  Prints this usage message."
+  echo "       -d:  Dry-run mode. Pulls down a listing of the files and"
+  echo "            directories it would download, and then exits."
+  echo "       -r:  The repo name to sync."
+}
+
+# This function parses the parameters passed over the command-line by the user.
+Parse_parameters() {
+  if [[ "${#}" = "0" ]]; then
+    Usage;
+    Fail "\nBashellite has mandatory parameters; review usage message and try again.\n";
+  fi
+
+  # This section unsets some variables, just in case.
+  unset mirror_tld;
+  unset target_repo_name;
+  unset dryrun;
+
+  mirror_tld="$(grep -oP "(?<=(^mirror_tld=)).*" ${metadata_tld}/bashellite.conf)";
+  if [[ "${#mirror_tld}" == "0" ]]; then
+    mirror_tld="/var/www/bashellite/mirror"
+  fi
+
+  # Bash-builtin getopts is used to perform parsing, so no long options are used.
+  while getopts ":m:r:c:hd" passed_parameter; do
+   case "${passed_parameter}" in
+      m)
+        mirror_tld="${OPTARG}";
+        ;;
+      r)
+        # Sanitizes the directory name of spaces or any other undesired characters.
+	      target_repo_name="${OPTARG//[^a-zA-Z1-9_-]}";
+	      ;;
+      d)
+        dryrun=true;
+        ;;
+      h)
+        Usage;
+        exit 0;
+        ;;
+      *)
+        Usage;
+        Fail "\nInvalid option passed to \"$(basename ${0})\"; exiting. See Usage below.\n";
+        ;;
+    esac
+  done
+  shift $((OPTIND-1));
+}
+
+#################################
+#
+### This section is for functions related to the main execution of the program.
+### Functions in this section perform the following tasks:
+###   - Check to ensure EUID is 0 before attempting sync
+###   - Ensure all required parameters are set before attempting sync
+###   - Ensuring appropriate directories exist for mirror
+###   - Ensuring appropriate dirs/files exist per repo
+###   - Ensuring repo metadata is populated before attempting sync
+###   - Ensuring required sync providers are installed and accesssible
+###   - Performing the sync
+###   - Reporting on the success of the sync
+#
+################################################################################
+
+Validate_variables() {
+
+  # This santizes the directory name of spaces or any other undesired characters.
+  mirror_tld="${mirror_tld//[^a-zA-Z1-9_-/]}";
+  mirror_tld=${mirror_tld//\"};
+  if [[ "${mirror_tld:0:1}" != "/" ]]; then
+    Usage;
+    Fail "\nAbsolute paths only, please; exiting.\n";
+  else
+    # Drops the last "/" from the value of mirror_tld to ensure uniformity for functions using it.
+    # Note: as a side-effect, this effective prevents using just "/" as the value for mirror_tld.
+    mirror_tld="${mirror_tld%\/}";
+  fi
+
+  # Ensures repo_name_array is not empty
+  if [[ -z "${repo_name_array}" ]]; then
+    Fail "Bashellite requires at least one valid repository.";
+  fi
+
+  # Exit if both -a and -r are passed and display usage
+  # Thanks for this contribution, Eric. :-)
+  if [[ ${all_repos} && ${target_repo_name} ]]; then
+      Usage;
+      Fail "\nThe flags -a and -r are mutually exclusive. Use one or the other; exiting.\n";
+  fi
+
+  # If the mirror_tld is unset or null; then exit.
+  # Since the last "/" was dropped in Parse_parameter,
+  # If user passed "/" for mirror_tld value, it effectively becomes "" (null).
+  if [[ -z "${mirror_tld}" ]]; then
+    Usage;
+    Fail "\nPlease set the desired location of the local mirror; exiting.\n";
+  fi
+}
+
+# This function creates/validates the file/directory framework for the requested repo.
+Validate_repo_framework() {
+  if [[ -n "${repo_name}" ]]; then
+    Info "Creating/validating directory and file structure for mirror and repo (${repo_name})...";
+    mkdir -p "${providers_tld}";
+    mirror_repo_name="${repo_name//__/\/}";
+    if [[ ! -d "${mirror_tld}" ]]; then
+      Fail "Mirror top-level directory (${mirror_tld}) does not exist!"
+    else
+      mkdir -p "${mirror_tld}/${mirror_repo_name}/" &>/dev/null \
+      || Fail "Unable to create directory (${mirror_tld}/${mirror_repo_name}); check permissions."
+    fi
+  fi
+}
+
+# This function performs the actual sync of the repository
+Sync_repository() {
+  Info "Running registry container with mounted volume: ${mirror_tld}/${mirror_repo_name}/"
+  Info "Command: docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2"
+  if [[ ${dryrun} == "" ]]; then
+    # Only run registry container if not a dry run
+    docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2
+  fi
+  for line in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
+    # Check to see it tags are listed
+    tag_index=0
+    tag_index=`expr index "${line}" ':'`
+    tags_found=""
+    tags_found="${line:${tag_index}}"
+    
+    if [[ ${tag_index} == 0 ]]; then
+      # No tags found, downloading latest tag for image
+      Info "Pulling latest tag for image: ${line}"
+      Info "Command: docker pull ${docker_registry_url}/${line}:latest"
       if [[ ${dryrun} == "" ]]; then
-        #only pull if not a dry run
-        docker pull ${docker_registry_url}/${image_name}:${each_tag}
+        # Only pull if not a dry run
+        docker pull ${docker_registry_url}/${line}:latest
       fi
-      echo "Pushing tag: ${each_tag} for image: ${image_name} to local registry container"
-      echo "Command 1: docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}"
-      echo "Command 2: docker push localhost:5000/${image_name}:${each_tag}"
+      Info "Pushing latest tag for image: ${line} to local registry container"
+      Info "Command 1: docker tag ${line}:latest localhost:5000/${line}:latest"
+      Info "Command 2: docker push localhost:5000/${line}:latest"
       if [[ ${dryrun} == "" ]]; then
         # Only tag and push if not a dry run
-        docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}
-        docker push localhost:5000/${image_name}:${each_tag}
+        docker tag ${line}:latest localhost:5000/${line}:latest
+        docker push localhost:5000/${line}:latest
       fi
-    done
+    elif [[ ${tag_index} == 1 || ${tags_found} == "" ]]; then
+      Warn "Invalid image/tag format found: ${line}, skipping..."
+    else
+      # Tags found
+      Info "Tags found"
+      IFS=$',\n'
+      tags_array=( ${tags_found} )
+      unset IFS
+      image_name=""
+      image_name="${line:0:${tag_index} - 1}"
+      for each_tag in ${tags_array[@]}; do
+        Info "Pulling tag: ${each_tag} for image: ${image_name}"
+        Info "Command: docker pull ${docker_registry_url}/${image_name}:${each_tag}"
+        if [[ ${dryrun} == "" ]]; then
+          #only pull if not a dry run
+          docker pull ${docker_registry_url}/${image_name}:${each_tag}
+        fi
+        Info "Pushing tag: ${each_tag} for image: ${image_name} to local registry container"
+        Info "Command 1: docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}"
+        Info "Command 2: docker push localhost:5000/${image_name}:${each_tag}"
+        if [[ ${dryrun} == "" ]]; then
+          # Only tag and push if not a dry run
+          docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}
+          docker push localhost:5000/${image_name}:${each_tag}
+        fi
+      done
+    fi
+  done
+  Info "Stopping Registry and removing all containers and images"
+  Info "Command 1: docker stop registry"
+  Info "Command 2: docker rm -f $(docker ps -a -q)"
+  Info "Command 3: docker rmi -f $(docker images -q)"
+  if [[ ${dryrun} == "" ]]; then
+    # Only tag and push if not a dry run
+    docker stop registry
+    docker rm -f $(docker ps -a -q)
+    docker rmi -f $(docker images -q)
   fi
-done
-echo "Stopping Registry and removing all containers and images"
-echo "Command 1: docker stop registry"
-echo "Command 2: docker rm -f $(docker ps -a -q)"
-echo "Command 3: docker rmi -f $(docker images -q)"
-if [[ ${dryrun} == "" ]]; then
-  # Only tag and push if not a dry run
-  docker stop registry
-  docker rm -f $(docker ps -a -q)
-  docker rmi -f $(docker images -q)
+  unset docker_registry_url;
+}
+
+################################################################################
+
+
+################################################################################
+### PROGRAM EXECUTION ###
+#########################
+### This section is for the execution of the previously defined functions.
+################################################################################
+
+# These complete prepatory admin tasks before executing the sync functions.
+# These functions require minimal file permissions and avoid writes to disk.
+# This makes errors unlikely, which is why verbose logging is not enabled for them.
+Check_deps \
+&& Ensure_gnu_deps \
+&& Get_date \
+&& Get_run_id \
+&& Set_colors \
+&& Parse_parameters ${@} \
+&& Determine_scope \
+
+# This for-loop executes the sync functions on the appropriate repos (either all or just one of them).
+# Logging is enabled for all of these functions; some don't technically need to be in the loop, except for logging.
+if [[ "${?}" == "0" ]]; then
+  for repo_name in ${repo_name_array[@]}; do
+  Info "Starting Bashellite run (${run_id}) for repo (${repo_name})..."
+    for task in \
+                Validate_variables \
+                Validate_repo_metadata \
+                Validate_repo_framework \
+                Ensure_sync_provider_installed \
+                Sync_repository \
+                Great_success;
+    do
+      ${task};
+    done 1> >(tee -a /var/log/bashellite/${repo_name}.${datestamp}.${run_id}.event.log >&1) \
+         2> >(tee -a /var/log/bashellite/${repo_name}.${datestamp}.${run_id}.error.log >&2);
+  done
+else
+  # This is ONLY executed if one of the prepatory/administrative functions fails.
+  # Most of them handle their own errors, and exit on failure, but a few do not.
+  echo "[FAIL] Bashellite failed to execute requested tasks; exiting!";
+  exit 1;
 fi
-unset docker_registry_url;
+################################################################################
