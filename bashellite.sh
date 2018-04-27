@@ -355,7 +355,7 @@ Validate_repo_framework() {
     Info "Creating/validating directory and file structure for mirror and repo (${repo_name})...";
     mkdir -p "${providers_tld}";
     mirror_repo_name="${repo_name//__/\/}";
-    if [[ ! -d "${metadata_tld}" ]]; then
+    if [[ ! -d "${mirror_tld}" ]]; then
       Fail "Mirror top-level directory (${mirror_tld}) does not exist!"
     else
       mkdir -p "${mirror_tld}/${mirror_repo_name}/" &>/dev/null \
