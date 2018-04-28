@@ -14,6 +14,51 @@ Get_time() {
   fi
 }
 
+# This function does a dependency check before proceeding
+Check_deps() {
+  which which &>/dev/null \
+    || { echo "[FAIL] Dependency (which) missing!"; exit 1; };
+  for dep in grep \
+             date \
+             tput \
+             basename \
+             realpath \
+             dirname \
+             ls \
+             mkdir \
+             chown \
+             touch \
+             cat \
+             sed \
+             ln \
+             tee;
+  do
+    which ${dep} &>/dev/null \
+      || { echo "[FAIL] Dependency (${dep}) missing!"; exit 1; };
+  done
+}
+
+# Ensures that the versions of certain deps are the GNU version before proceeding
+Ensure_gnu_deps() {
+  for dep in grep \
+             date \
+             basename \
+             realpath \
+             dirname \
+             ls \
+             mkdir \
+             chown \
+             touch \
+             cat \
+             sed \
+             ln \
+             tee;
+  do
+    grep "GNU" <<<"$(${dep} --version 2>&1)" &>/dev/null \
+      || { echo "[FAIL] Dependency (${dep}) not GNU version!"; exit 1; };
+  done
+}
+
 # These functions are used to generate colored output
 #  Info is green, Warn is yellow, Fail is red.
 Set_colors() {
@@ -82,6 +127,7 @@ Parse_parameters() {
   unset mirror_tld;
   unset target_repo_name;
   unset dryrun;
+  unset config_file;
 
   mirror_tld="$(grep -oP "(?<=(^mirror_tld=)).*" ${metadata_tld}/bashellite.conf)";
   if [[ "${#mirror_tld}" == "0" ]]; then
@@ -100,6 +146,9 @@ Parse_parameters() {
 	      ;;
       d)
         dryrun=true;
+        ;;
+      c)
+        config_file="${OPTARG}";
         ;;
       h)
         Usage;
