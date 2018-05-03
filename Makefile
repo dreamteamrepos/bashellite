@@ -14,7 +14,6 @@ user:
 install:
 	install -m 755 -D bashellite.sh $(DESTDIR)$(PREFIX)/sbin/bashellite
 	mkdir -p $(DESTDIR)$(CONFDIR)
-	cp -r _metadata/* $(DESTDIR)$(CONFDIR)
 	mkdir -p $(DESTDIR)$(LOGDIR)
 	mkdir -p $(DESTDIR)$(DATADIR)
 	mkdir -p $(DESTDIR)$(PROVIDERDIR)
