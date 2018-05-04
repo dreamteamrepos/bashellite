@@ -125,14 +125,11 @@ Parse_parameters() {
 
   # This section unsets some variables, just in case.
   unset mirror_tld;
-  unset target_repo_name;
+  unset repo_name;
   unset dryrun;
   unset config_file;
 
-  mirror_tld="$(grep -oP "(?<=(^mirror_tld=)).*" ${metadata_tld}/bashellite.conf)";
-  if [[ "${#mirror_tld}" == "0" ]]; then
-    mirror_tld="/var/www/bashellite/mirror"
-  fi
+  mirror_tld=$(pwd)
 
   # Bash-builtin getopts is used to perform parsing, so no long options are used.
   while getopts ":m:r:c:hd" passed_parameter; do
@@ -142,7 +139,7 @@ Parse_parameters() {
         ;;
       r)
         # Sanitizes the directory name of spaces or any other undesired characters.
-	      target_repo_name="${OPTARG//[^a-zA-Z1-9_-]}";
+	      repo_name="${OPTARG//[^a-zA-Z1-9_-]}";
 	      ;;
       d)
         dryrun=true;
@@ -193,16 +190,9 @@ Validate_variables() {
   fi
 
   # Ensures repo_name_array is not empty
-  if [[ -z "${repo_name_array}" ]]; then
-    Fail "Bashellite requires at least one valid repository.";
-  fi
-
-  # Exit if both -a and -r are passed and display usage
-  # Thanks for this contribution, Eric. :-)
-  if [[ ${all_repos} && ${target_repo_name} ]]; then
-      Usage;
-      Fail "\nThe flags -a and -r are mutually exclusive. Use one or the other; exiting.\n";
-  fi
+  #if [[ -z "${repo_name_array}" ]]; then
+  #  Fail "Bashellite requires at least one valid repository.";
+  #fi
 
   # If the mirror_tld is unset or null; then exit.
   # Since the last "/" was dropped in Parse_parameter,
@@ -217,7 +207,7 @@ Validate_variables() {
 Validate_repo_framework() {
   if [[ -n "${repo_name}" ]]; then
     Info "Creating/validating directory and file structure for mirror and repo (${repo_name})...";
-    mkdir -p "${providers_tld}";
+    #mkdir -p "${providers_tld}";
     mirror_repo_name="${repo_name//__/\/}";
     if [[ ! -d "${mirror_tld}" ]]; then
       Fail "Mirror top-level directory (${mirror_tld}) does not exist!"
@@ -230,19 +220,14 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
-  Info "Running registry container with mounted volume: ${mirror_tld}/${mirror_repo_name}/"
-  Info "Command: docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2"
-  if [[ ${dryrun} == "" ]]; then
-    # Only run registry container if not a dry run
-    docker run -d -p 5000:5000 --name registry -v ${mirror_tld}/${mirror_repo_name}:/var/lib/registry registry:2
-  fi
-  for line in $(cat ${script_dir}/_metadata/${repo_name}/repo_filter.conf); do
-    # Check to see it tags are listed
+  for line in $(cat ${config_file}); do
+    # Check to see if tags are listed
     tag_index=0
     tag_index=`expr index "${line}" ':'`
     tags_found=""
     tags_found="${line:${tag_index}}"
     
+    docker_registry_url="https://index.docker.io"
     if [[ ${tag_index} == 0 ]]; then
       # No tags found, downloading latest tag for image
       Info "Pulling latest tag for image: ${line}"
@@ -251,7 +236,7 @@ Sync_repository() {
         # Only pull if not a dry run
         docker pull ${docker_registry_url}/${line}:latest
       fi
-      Info "Pushing latest tag for image: ${line} to local registry container"
+      Info "Saving latest tag for image: ${line} to local registry container"
       Info "Command 1: docker tag ${line}:latest localhost:5000/${line}:latest"
       Info "Command 2: docker push localhost:5000/${line}:latest"
       if [[ ${dryrun} == "" ]]; then
