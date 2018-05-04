@@ -416,7 +416,7 @@ Sync_repository() {
     else
       dryrun_flag="";
     fi
-    rsync -avSLP ${repo_url} \
+    rsync -avSP ${repo_url} \
       ${dryrun_flag} \
       --exclude-from="${metadata_tld}/repos.conf.d/${repo_name}/provider.conf" \
       --safe-links \
