@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#IFS=$'\n'
 while read myline
 do
   newline=( ${myline} )
