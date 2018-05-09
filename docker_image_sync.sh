@@ -1,5 +1,21 @@
 #!/bin/bash
 
+###
+# This script requires a config file to be specified that contains a listing of 
+# of images and/or images+tags to download.  Each line can consist of the following 
+# format: <image name> or <image name>:<list of comma separated tags> or 
+#         <user>/<image name> or <user>/<image name>:<list of comma separated tags>
+# Ex: mysql - This will download the latest tagged image for mysql
+#     mysql:5.5,5.6 - This will download tags 5.5 and 5.6 for mysql
+#     remnut/metasploit - This will download the latest tagged image for remnut/metasploit
+###
+# Example conf file:
+###
+# mysql
+# mysql:5.5,5.6
+# remnut/metasploit
+###
+
 ### Program Version:
     script_version="0.1.0-beta"
 
@@ -120,7 +136,7 @@ Usage() {
 Parse_parameters() {
   if [[ "${#}" = "0" ]]; then
     Usage;
-    Fail "\nBashellite has mandatory parameters; review usage message and try again.\n";
+    Fail "\n${0} has mandatory parameters; review usage message and try again.\n";
   fi
 
   # This section unsets some variables, just in case.
@@ -220,14 +236,15 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
+  image_name_array=()
+
   for line in $(cat ${config_file}); do
     # Check to see if tags are listed
     tag_index=0
     tag_index=`expr index "${line}" ':'`
     tags_found=""
     tags_found="${line:${tag_index}}"
-    
-    docker_registry_url="https://index.docker.io"
+    docker_registry_url="index.docker.io"    
     if [[ ${tag_index} == 0 ]]; then
       # No tags found, downloading latest tag for image
       Info "Pulling latest tag for image: ${line}"
@@ -236,13 +253,15 @@ Sync_repository() {
         # Only pull if not a dry run
         docker pull ${docker_registry_url}/${line}:latest
       fi
-      Info "Saving latest tag for image: ${line} to local registry container"
-      Info "Command 1: docker tag ${line}:latest localhost:5000/${line}:latest"
-      Info "Command 2: docker push localhost:5000/${line}:latest"
+
+      # Add image to array for later removal
+      image_name_array+=( "${line}:latest" )
+
+      Info "Saving latest tag for image: ${line}"
+      Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest"
       if [[ ${dryrun} == "" ]]; then
-        # Only tag and push if not a dry run
-        docker tag ${line}:latest localhost:5000/${line}:latest
-        docker push localhost:5000/${line}:latest
+        # Only save if not a dry run
+        docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest
       fi
     elif [[ ${tag_index} == 1 || ${tags_found} == "" ]]; then
       Warn "Invalid image/tag format found: ${line}, skipping..."
@@ -261,27 +280,28 @@ Sync_repository() {
           #only pull if not a dry run
           docker pull ${docker_registry_url}/${image_name}:${each_tag}
         fi
-        Info "Pushing tag: ${each_tag} for image: ${image_name} to local registry container"
-        Info "Command 1: docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}"
-        Info "Command 2: docker push localhost:5000/${image_name}:${each_tag}"
+
+        # Add image to array for later removal
+        image_name_array+=( "${image_name}:${each_tag}" )
+
+        Info "Saving tag: ${each_tag} for image: ${image_name}"
+        Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}"
         if [[ ${dryrun} == "" ]]; then
-          # Only tag and push if not a dry run
-          docker tag ${image_name}:${each_tag} localhost:5000/${image_name}:${each_tag}
-          docker push localhost:5000/${image_name}:${each_tag}
+          # Only save if not a dry run
+          docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}
         fi
       done
     fi
   done
-  Info "Stopping Registry and removing all containers and images"
-  Info "Command 1: docker stop registry"
-  Info "Command 2: docker rm -f $(docker ps -a -q)"
-  Info "Command 3: docker rmi -f $(docker images -q)"
-  if [[ ${dryrun} == "" ]]; then
-    # Only tag and push if not a dry run
-    docker stop registry
-    docker rm -f $(docker ps -a -q)
-    docker rmi -f $(docker images -q)
-  fi
+  Info "Removing images pulled to local docker..."
+  for line in ${image_name_array[@]}; do
+    Info "Removing image: ${line} from local docker"
+    Info "Command: docker rmi ${line}"
+    if [[ ${dryrun} == "" ]]; then
+      # Only remove if not a dry run
+      docker rmi ${line}
+    fi
+  done
   unset docker_registry_url;
 }
 
@@ -299,33 +319,24 @@ Sync_repository() {
 # This makes errors unlikely, which is why verbose logging is not enabled for them.
 Check_deps \
 && Ensure_gnu_deps \
-&& Get_date \
-&& Get_run_id \
 && Set_colors \
 && Parse_parameters ${@} \
-&& Determine_scope \
 
 # This for-loop executes the sync functions on the appropriate repos (either all or just one of them).
 # Logging is enabled for all of these functions; some don't technically need to be in the loop, except for logging.
 if [[ "${?}" == "0" ]]; then
-  for repo_name in ${repo_name_array[@]}; do
-  Info "Starting Bashellite run (${run_id}) for repo (${repo_name})..."
-    for task in \
-                Validate_variables \
-                Validate_repo_metadata \
-                Validate_repo_framework \
-                Ensure_sync_provider_installed \
-                Sync_repository \
-                Great_success;
-    do
-      ${task};
-    done 1> >(tee -a /var/log/bashellite/${repo_name}.${datestamp}.${run_id}.event.log >&1) \
-         2> >(tee -a /var/log/bashellite/${repo_name}.${datestamp}.${run_id}.error.log >&2);
+  Info "Starting ${0} for repo (${repo_name})..."
+  for task in \
+              Validate_variables \
+              Validate_repo_framework \
+              Sync_repository;
+  do
+    ${task};
   done
 else
   # This is ONLY executed if one of the prepatory/administrative functions fails.
   # Most of them handle their own errors, and exit on failure, but a few do not.
-  echo "[FAIL] Bashellite failed to execute requested tasks; exiting!";
+  echo "[FAIL] ${0} failed to execute requested tasks; exiting!";
   exit 1;
 fi
 ################################################################################
