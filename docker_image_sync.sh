@@ -220,14 +220,15 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
+  image_name_array=()
+
   for line in $(cat ${config_file}); do
     # Check to see if tags are listed
     tag_index=0
     tag_index=`expr index "${line}" ':'`
     tags_found=""
     tags_found="${line:${tag_index}}"
-    
-    docker_registry_url="index.docker.io"
+    docker_registry_url="index.docker.io"    
     if [[ ${tag_index} == 0 ]]; then
       # No tags found, downloading latest tag for image
       Info "Pulling latest tag for image: ${line}"
@@ -236,6 +237,10 @@ Sync_repository() {
         # Only pull if not a dry run
         docker pull ${docker_registry_url}/${line}:latest
       fi
+
+      # Add image to array for later removal
+      image_name_array+=( "${line}:latest" )
+
       Info "Saving latest tag for image: ${line}"
       Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest"
       if [[ ${dryrun} == "" ]]; then
@@ -259,6 +264,10 @@ Sync_repository() {
           #only pull if not a dry run
           docker pull ${docker_registry_url}/${image_name}:${each_tag}
         fi
+
+        # Add image to array for later removal
+        image_name_array+=( "${image_name}:${each_tag}" )
+
         Info "Saving tag: ${each_tag} for image: ${image_name}"
         Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}"
         if [[ ${dryrun} == "" ]]; then
@@ -266,6 +275,15 @@ Sync_repository() {
           docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}
         fi
       done
+    fi
+  done
+  Info "Removing images pulled to local docker..."
+  for line in ${image_name_array[@]}; do
+    Info "Removing image: ${line} from local docker"
+    Info "Command: docker rmi ${line}"
+    if [[ ${dryrun} == "" ]]; then
+      # Only remove if not a dry run
+      docker rmi ${line}
     fi
   done
   unset docker_registry_url;
