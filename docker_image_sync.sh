@@ -237,10 +237,10 @@ Sync_repository() {
         docker pull ${docker_registry_url}/${line}:latest
       fi
       Info "Saving latest tag for image: ${line}"
-      Info "Command: docker save -o ${line}-latest.tar ${line}:latest"
+      Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest"
       if [[ ${dryrun} == "" ]]; then
         # Only save if not a dry run
-        docker save -o ${line}-latest.tar ${line}:latest
+        docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest
       fi
     elif [[ ${tag_index} == 1 || ${tags_found} == "" ]]; then
       Warn "Invalid image/tag format found: ${line}, skipping..."
@@ -260,10 +260,10 @@ Sync_repository() {
           docker pull ${docker_registry_url}/${image_name}:${each_tag}
         fi
         Info "Saving tag: ${each_tag} for image: ${image_name}"
-        Info "Command: docker save -o ${image_name}-${each_tag}.tar ${image_name}:${each_tag}"
+        Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}"
         if [[ ${dryrun} == "" ]]; then
           # Only save if not a dry run
-          docker save -o ${image_name}-${each_tag}.tar ${image_name}:${each_tag}
+          docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}
         fi
       done
     fi
