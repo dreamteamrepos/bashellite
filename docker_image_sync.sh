@@ -1,5 +1,21 @@
 #!/bin/bash
 
+###
+# This script requires a config file to be specified that contains a listing of 
+# of images and/or images+tags to download.  Each line can consist of the following 
+# format: <image name> or <image name>:<list of comma separated tags> or 
+#         <user>/<image name> or <user>/<image name>:<list of comma separated tags>
+# Ex: mysql - This will download the latest tagged image for mysql
+#     mysql:5.5,5.6 - This will download tags 5.5 and 5.6 for mysql
+#     remnut/metasploit - This will download the latest tagged image for remnut/metasploit
+###
+# Example conf file:
+###
+# mysql
+# mysql:5.5,5.6
+# remnut/metasploit
+###
+
 ### Program Version:
     script_version="0.1.0-beta"
 
