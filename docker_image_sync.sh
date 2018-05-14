@@ -123,13 +123,16 @@ Usage() {
   echo "       [-r repository_name]"
   echo
   echo
-  echo "       Optional Parameter(s):"
+  echo "       Required Parameter(s):"
   echo "       -m:  Sets a temporary disk mirror top-level directory."
   echo "            Only absolute (full) paths are accepted!"
+  echo "       -r:  The repo name to sync."
+  echo "       -c:  The config file that has the filter of images to download"
+  echo "       Optional Parameter(s):"
   echo "       -h:  Prints this usage message."
   echo "       -d:  Dry-run mode. Pulls down a listing of the files and"
   echo "            directories it would download, and then exits."
-  echo "       -r:  The repo name to sync."
+  echo "       -s:  An optional site name to pull images from.  Default is: index.docker.io"
 }
 
 # This function parses the parameters passed over the command-line by the user.
@@ -144,11 +147,13 @@ Parse_parameters() {
   unset repo_name;
   unset dryrun;
   unset config_file;
+  unset site_name;
 
   mirror_tld=$(pwd)
+  site_name="index.docker.io"
 
   # Bash-builtin getopts is used to perform parsing, so no long options are used.
-  while getopts ":m:r:c:hd" passed_parameter; do
+  while getopts ":m:r:c:s:hd" passed_parameter; do
    case "${passed_parameter}" in
       m)
         mirror_tld="${OPTARG}";
@@ -162,6 +167,9 @@ Parse_parameters() {
         ;;
       c)
         config_file="${OPTARG}";
+        ;;
+      s)
+        site_name="${OPTARG}";
         ;;
       h)
         Usage;
@@ -244,7 +252,7 @@ Sync_repository() {
     tag_index=`expr index "${line}" ':'`
     tags_found=""
     tags_found="${line:${tag_index}}"
-    docker_registry_url="index.docker.io"    
+    docker_registry_url="${site_name}"    
     if [[ ${tag_index} == 0 ]]; then
       # No tags found, downloading latest tag for image
       Info "Pulling latest tag for image: ${line}"
