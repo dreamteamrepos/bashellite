@@ -1,6 +1,9 @@
 #!/bin/bash
 
-DEST_DIR=/mirror1/
+MIRROR_TLD=/mirror1
+CACHE_DIR=${MIRROR_TLD}/cache
+REPO_DIR=${MIRROR_TLD}/repos
+DEST_DIR=${REPO_DIR}/redhat
 
 declare -a repos=(
 # Base RHEL
@@ -30,7 +33,6 @@ declare -a repos=(
 )
 
 for repo in "${repos[@]}"; do
-  reposync -lnm -r $repo -e ${DEST_DIR}/cache -p ${DEST_DIR}
-  createrepo -v --workers 4 -c ${DEST_DIR}/cache --update -g comps.xml ${DEST_DIR}/${repo}/
+  reposync -lnm -r $repo -e ${CACHE_DIR} -p ${REPO_DIR}
+  createrepo -v --workers 4 -c ${CACHE_DIR} --update -g comps.xml ${REPO_DIR}/${repo}/
 done
-
