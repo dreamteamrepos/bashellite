@@ -26,7 +26,7 @@
 # This section is for toggling debugging on/off
 # "set -x" toggles debugging on
 # "set +x" toggles debugging off
-set +x
+set +x;
 
 # Loads the program's libraries
 # They must be in "../lib" relative the bashellite's "./bin" directory
@@ -34,14 +34,40 @@ if [[ -f "/usr/bin/realpath" ]] && [[ -f "/usr/bin/dirname" ]]; then
   _n_bashellite_bin_dir="$(/usr/bin/realpath $(/usr/bin/dirname ${0}))";
   _n_bashellite_lib_dir="${_n_bashellite_bin_dir%/bin}/lib";
   source ${_n_bashellite_lib_dir}/util-libs.sh;
+  for utilfunction in \
+                      utilLog \
+                      utilDeps \
+                      utilGNU \
+                      utilColors \
+                      utilDate \
+                      utilTime \
+                      utilMsg \
+                      ;
+  do
+      readonly -f ${utilfunction};
+  done;
   source ${_n_bashellite_lib_dir}/bashellite-libs.sh;
+  for bashellitefunction in \
+                            bashelliteUsage \
+                            bashelliteSetup \
+                            bashelliteCallProvider \
+                            bashelliteGreatSuccess \
+                            ;
+  do
+      readonly -f ${bashellitefunction};
+  done;
 else
   echo "[FAIL] Failed to source bashellite library functions; exiting." >&2;
   exit 1;
 fi
 
 # Sets up color messaging
-utilColors || exit 1;
+utilColors \
+  || { \
+        echo "[FAIL] Failed to setup colorized output; exiting.";
+        exit 1;
+     };
+
 
 # Sets up advanced logging features
 utilLog /var/log/bashellite \
@@ -54,7 +80,7 @@ utilLog /var/log/bashellite \
 while true; do
   bashelliteSetup ${@} \
   || { \
-        utilMsg FAIL "$(utilTime)" "Bashellite failed to execute requested tasks; exiting!";
+        utilMsg FAIL "$(utilTime)" "Bashellite failed to setup required variables for providers; exiting!";
         exit 1;
      };
   break;
@@ -65,16 +91,40 @@ done 1> >(tee -a ${_r_log_dir}/_setup_.${_r_datestamp}.${_r_run_id}.event.log >&
 # If the "-r" flag was passed, the array contains just one repo_name
 # If the "-a" flag was passed, the array contains every repo_name
 for repo_name in ${_gr_repo_name_array[@]}; do
-  utilMsg INFO "$(utilTime)" "Starting Bashellite run (${_r_run_id}) for repo (${repo_name})...";
+
   _n_repo_name="${repo_name}";
-  for task in \
-               bashelliteCallProvider \
-               bashelliteGreatSuccess \
-              ;
-  do
-    ${task};
-  done 1> >(tee -a ${_r_log_dir}/${repo_name}.${_r_datestamp}.${_r_run_id}.event.log >&1) \
-       2> >(tee -a ${_r_log_dir}/${repo_name}.${_r_datestamp}.${_r_run_id}.error.log >&2);
+  _n_mirror_repo_name="${_n_repo_name//__/\/}";
+  _n_no_repo_dl_errors=false;
+  _n_repo_dl_retry_count=0;
+
+  # Bashellite must have an empty error log for the repo, or it will retry up to 2 times to sync a repo
+  until ${_n_no_repo_dl_errors} || [[ ${_n_repo_dl_retry_count} -gt 2 ]]; do
+    # Bashellite must perform two successful passes per repo
+    for pass in first second; do
+      if [[ ${_n_repo_dl_retry_count} == 0 ]]; then
+        utilMsg INFO "$(utilTime)" "Starting Bashellite run (${_r_run_id}) for repo (${repo_name}), ${pass} pass...";
+      else 
+        utilMsg INFO "$(utilTime)" "Starting retry ${_n_repo_dl_retry_count} of Bashellite run (${_r_run_id}) for repo (${repo_name}), ${pass} pass...";
+      fi
+      if [[ ! -d "${_r_mirror_tld}/${_n_mirror_repo_name}" ]]; then
+        utilMsg INFO "$(utilTime)" "Repo's mirror directory (${_r_mirror_tld}/${_n_mirror_repo_name}) does not exist; attempting to create."
+        mkdir -p "${_r_mirror_tld}/${_n_mirror_repo_name}" &>/dev/null \
+        || { \
+              utilMsg FAIL "$(utilTime)" "Unable to create directory (${_r_mirror_tld}/${_n_mirror_repo_name}); check permissions of mirror_tld, and rerun."
+              exit 1
+           };
+      fi
+    
+      bashelliteCallProvider \
+        || { \
+              utilMsg FAIL "$(utilTime)" "Bashellite failed to call requested provider, or provider returned with fatal error code; exiting!";
+              exit 1;
+           };
+    done
+    bashelliteGreatSuccess;
+  done 1> >(tee -a ${_r_log_dir}/${_n_repo_name}.${_r_datestamp}.${_r_run_id}.event.log >&1) \
+       2> >(tee -a ${_r_log_dir}/${_n_repo_name}.${_r_datestamp}.${_r_run_id}.error.log >&2);
 done
 
 ################################################################################
+

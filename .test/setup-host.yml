@@ -1,0 +1,55 @@
+---
+- name: "Sets up a server for testing Bashellite"
+  hosts: "localhost"
+  connection: "local"
+  become: true
+  become_method: "sudo"
+  become_user: "root"
+  gather_facts: false
+
+  vars_files:
+
+    - vars.yml
+
+  tasks:
+
+  - name: "Ensure required packages are installed"
+    yum:
+      state: latest
+      name: "{{ item }}"
+    with_items:
+      - yum
+      - vim
+      - git
+
+  - name: "Git clone the Bashellite repos"
+    git:
+      repo: "https://github.com/{{ org_name }}/{{ item }}.git"
+      dest: "/root/{{ item }}"
+      clone: "yes"
+      force: "yes"
+    with_items:
+      - "{{ git_repos }}"
+
+  - name: "Run install-deps.sh to ensure dependencies are installed for main Bashellite script"
+    shell: "cd /root/bashellite/.init/; chmod u+x install-deps.sh; ./install-deps.sh;"
+
+  - name: "Execute instructions in MakeFile to ensure Bashellite user is on system, and providers and their deps are installed"
+    make:
+      chdir: "/root/bashellite/.init/"
+      target: "all"
+
+  - name: "Ensure mirror directory exists with appropriate ownership and permissions"
+    file:
+      state: "directory"
+      owner: "bashellite"
+      group: "bashellite"
+      mode: "2750"
+      path: "{{ mirror_tld }}"
+
+  - name: "Ensure everything installed properly and is functioning as expected"
+    become: true
+    become_user: "bashellite"
+    become_method: "sudo"
+    shell: "source ~/.bashrc; bashellite -h; bashellite -r test;"
+

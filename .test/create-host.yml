@@ -1,0 +1,32 @@
+---
+- name: "Creates a server for testing Bashellite"
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: false
+
+  vars_files:
+
+    - vars.yml
+
+  tasks:
+
+  - name: "Ensure Bashellite test server is in the appropriate state"
+    digital_ocean:
+      state: "present"
+      command: "droplet"
+      name: bashellite
+      ssh_key_ids: "{{ ssh_key_ids }}"
+      api_token: "{{ api_token }}"
+      user_data: |
+         #!/usr/bin/env bash
+         yum install -y ansible git;
+         ansible-pull -U "https://github.com/{{ org_name }}/bashellite.git" .test/setup-host.yml;
+      size_id: "s-2vcpu-4gb"
+      region_id: "sfo2"
+      image_id: "centos-7-x64"
+      wait_timeout: "300"
+    register: droplet
+
+  - name: "Print information about droplet"
+    debug:
+      var: droplet.droplet.ip_address

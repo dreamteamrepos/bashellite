@@ -2,25 +2,25 @@ bashelliteUsage() {
 
   if [[ "${#}" == "1" ]]; then
     case "${1}" in
-    FAIL)
-      local msg="FAIL";
-      local usg="RED";
-      ;;
-    WARN)
-      local msg="WARN";
-      local usg="YELLOW";
-      ;;
-    INFO)
-      local msg="INFO";
-      local usg="GREEN";
-      ;;
-    SKIP)
-      local msg="SKIP";
-      local usg="BLUE";
-      ;;
-    *)
-      utilMsg FAIL "$(utilTime)" "Invalid input for function (${FUNCNAME[@]}); exiting."
-      ;;
+      FAIL)
+        local msg="FAIL";
+        local usg="RED";
+        ;;
+      WARN)
+        local msg="WARN";
+        local usg="YELLOW";
+        ;;
+      INFO)
+        local msg="INFO";
+        local usg="GREEN";
+        ;;
+      SKIP)
+        local msg="SKIP";
+        local usg="BLUE";
+        ;;
+      *)
+        utilMsg FAIL "$(utilTime)" "Invalid input for function (${FUNCNAME[@]}); exiting."
+        ;;
     esac
   else
     local msg="INFO";
@@ -28,26 +28,32 @@ bashelliteUsage() {
   fi
 
   utilMsg $msg "$(utilTime)" "See $(basename ${0}) usage below..." 
-  utilMsg $usg "$(utilTime)" " "
-  utilMsg $usg "$(utilTime)" "Usage: $(basename ${0}) v${_r_script_version}"
-  utilMsg $usg "$(utilTime)" "       [-m mirror_top-level_directory]"
-  utilMsg $usg "$(utilTime)" "       [-h]"
-  utilMsg $usg "$(utilTime)" "       [-d]"
-  utilMsg $usg "$(utilTime)" "       [-r repository_name] | [-a]"
-  utilMsg $usg "$(utilTime)" " "
-  utilMsg $usg "$(utilTime)" "       Optional Parameter(s):"
-  utilMsg $usg "$(utilTime)" "       -m:  Sets a temporary disk mirror top-level directory."
-  utilMsg $usg "$(utilTime)" "            Only absolute (full) paths are accepted!"
-  utilMsg $usg "$(utilTime)" "       -h:  Prints this usage message."
-  utilMsg $usg "$(utilTime)" "       -d:  Dry-run mode. Pulls down a listing of the files and"
-  utilMsg $usg "$(utilTime)" "            directories it would download, and then exits."
-  utilMsg $usg "$(utilTime)" "       -r:  The repo name to sync."
-  utilMsg $usg "$(utilTime)" "       -a:  Mutually exclusive with -r option; sync all repos."
-  utilMsg $usg "$(utilTime)" " "
-  utilMsg $usg "$(utilTime)" "       Note: Repositories can be grouped by naming them with \"__\";"
-  utilMsg $usg "$(utilTime)" "             for example, repo: \"images__linux\" becomes images/linux"
-  utilMsg $usg "$(utilTime)" "             inside of the mirror directory passed via the \"-m\" flag."
-  utilMsg $usg "$(utilTime)" " "
+  echo
+  utilMsg $usg "12345678"     "Usage: $(basename ${0}) v${_r_script_version}"
+  utilMsg $usg "12345678"     "       [-m mirror_top-level_directory]"
+  utilMsg $usg "12345678"     "       [-c configuration_top-level_directory]"
+  utilMsg $usg "12345678"     "       [-p provider_top-level_directory]"
+  utilMsg $usg "12345678"     "       [-h]"
+  utilMsg $usg "12345678"     "       [-d]"
+  utilMsg $usg "12345678"     "       [-r repository_name] | [-a]"
+  echo
+  utilMsg $usg "12345678"     "       Optional Parameter(s):"
+  utilMsg $usg "12345678"     "       -m:  Sets a temporary disk mirror top-level directory."
+  utilMsg $usg "12345678"     "            Only absolute (full) paths are accepted!"
+  utilMsg $usg "12345678"     "       -c:  Sets a temporary configuration top-level directory."
+  utilMsg $usg "12345678"     "            Only absolute (full) paths are accepted!"
+  utilMsg $usg "12345678"     "       -p:  Sets a temporary provider top-level directory."
+  utilMsg $usg "12345678"     "            Only absolute (full) paths are accepted!"
+  utilMsg $usg "12345678"     "       -h:  Prints this usage message."
+  utilMsg $usg "12345678"     "       -d:  Dry-run mode. Pulls down a listing of the files and"
+  utilMsg $usg "12345678"     "            directories it would download, and then exits."
+  utilMsg $usg "12345678"     "       -r:  The repo name to sync."
+  utilMsg $usg "12345678"     "       -a:  Mutually exclusive with -r option; sync all repos."
+  echo
+  utilMsg $usg "12345678"     "       Note: Repositories can be grouped by naming them with \"__\";"
+  utilMsg $usg "12345678"     "             for example, repo: \"images__linux\" becomes images/linux"
+  utilMsg $usg "12345678"     "             inside of the mirror directory passed via the \"-m\" flag."
+  echo
 
 }
 
@@ -68,6 +74,7 @@ bashelliteSetup() {
               config_file_mirror_tld \
               config_file_providers_tld \
               _r_repo_name_array \
+              mirror_repo_name \
              ;
   do
      unset ${var} \
@@ -127,7 +134,7 @@ bashelliteSetup() {
   while getopts ":m:r:c:p:dah" passed_parameter; do
    case "${passed_parameter}" in
       m)
-        # Variable finalized below
+        # Variable initialized here, but finalized below case statement
         _r_mirror_tld="${OPTARG}";
         ;;
       r)
@@ -146,14 +153,15 @@ bashelliteSetup() {
         fi
         ;;
       c)
-        # Variable finalized below
+        # Variable finalized below case statement
         local metadata_tld="${OPTARG}";
         ;;
       p)
-        # Variable finalized below
+        # Variable finalized below case statement
         local providers_tld="${OPTARG}";
         ;;
       d)
+        # Lets all subsequent conditionals know that this is a dryrun is "-d" flag is passed
         readonly _r_dryrun=true \
           || { \
                 utilMsg FAIL "$(utilTime)" "Failed to set constant (dryrun)";
@@ -161,6 +169,7 @@ bashelliteSetup() {
              };
         ;;
       a)
+        # Ensures that the repo_name_array gets populated with all configured repos if "-a" is passed
         local all_repos=true \
           || { \
                 utilMsg FAIL "$(utilTime)" "Failed to set local variable (all_repos)";
@@ -168,12 +177,14 @@ bashelliteSetup() {
              };
         ;;
       h)
-        bashelliteUsage;
+        # Help option; prints usage message, then returns 0
+        bashelliteUsage INFO;
         return 0;
         ;;
       *)
-        bashelliteUsage;
-        utilMsg FAIL "\nInvalid option passed to \"$(basename ${0})\"; exiting. See Usage below.\n";
+        # Invalid option; prints usage message, then returns 1
+        bashelliteUsage FAIL;
+        utilMsg FAIL "$(utilTime)" "Invalid option passed to \"$(basename ${0})\"; exiting. See Usage below.";
         return 1;
         ;;
     esac
@@ -187,7 +198,7 @@ bashelliteSetup() {
   local metadata_tld="${metadata_tld//[^a-zA-Z1-9_-/]}";
   local metadata_tld=${metadata_tld//\"};
   if [[ "${metadata_tld:0:1}" != "/" ]]; then
-    bashelliteUsage;
+    bashelliteUsage FAIL;
     utilMsg FAIL "$(utilTime)" "\nAbsolute paths only, please; exiting.\n";
   else
     # Drops the last "/" from the value to ensure uniformity for functions using it
@@ -211,21 +222,26 @@ bashelliteSetup() {
   local mirror_tld="${mirror_tld//[^a-zA-Z1-9_-/]}";
   local mirror_tld=${mirror_tld//\"};
   if [[ "${mirror_tld:0:1}" != "/" ]]; then
-    bashelliteUsage;
+    bashelliteUsage FAIL;
     utilMsg FAIL "\nAbsolute paths only, please; exiting.\n";
   else
     # Drops the last "/" from the value to ensure uniformity for functions using it
     # Note: as a side-effect, this effective prevents using just "/" as the value
     local mirror_tld="${mirror_tld%\/}";
   fi
-
   # Makes the variable a constant and exports it
   readonly _r_mirror_tld="${mirror_tld}" \
     || { \
           utilMsg FAIL "$(utilTime)" "Failed to set constant (mirror_tld)";
           return 1;
        };
-  
+  # Ensures mirror_tld directory exists, if not tries to create it (requires user to have appropriate filesystem permissions).
+  if [[ ! -d "${_r_mirror_tld}" ]]; then
+    utilMsg INFO "$(utilTime)" "Mirror top-level directory (${_r_mirror_tld}) does not exist; attempting to create."
+    mkdir "${_r_mirror_tld}" &>/dev/null \
+    || utilMsg FAIL "$(utilTime)" "Unable to create directory (${_r_mirror_tld}); create manually, set permissions, and rerun."
+  fi
+
   ### Finalizes the value of variable (providers_tld) ###
   # Gets and sets value of variable from config file (if it is defined there)
   local config_file_providers_tld="$(grep -oP "(?<=(^providers_tld=)).*" ${_r_metadata_tld}/bashellite.conf)";
@@ -236,14 +252,14 @@ bashelliteSetup() {
   local providers_tld="${providers_tld//[^a-zA-Z1-9_-/]}";
   local providers_tld=${providers_tld//\"};
   if [[ "${providers_tld:0:1}" != "/" ]]; then
-    bashelliteUsage;
+    bashelliteUsage FAIL;
     utilMsg FAIL "$(utilTime)" "\nAbsolute paths only, please; exiting.\n";
+    return 1;
   else
     # Drops the last "/" from the value to ensure uniformity for functions using it
     # Note: as a side-effect, this effective prevents using just "/" as the value
     local providers_tld="${providers_tld%\/}";
   fi
-
   # Makes the variable a constant and exports it
   readonly _r_providers_tld="${providers_tld}" \
     || { \
@@ -262,12 +278,14 @@ bashelliteSetup() {
   # Ensures repo_name_array is not empty
   if [[ -z "${_gr_repo_name_array[@]}" ]]; then
     utilMsg FAIL "$(utilTime)" "Bashellite requires at least one valid repository.";
+    return 1;
   fi
 
   # Exit if both "-a" and "-r" are passed and display usage
   if [[ "${all_repos}" == "true" ]] && [[ "${#_r_target_repo_name}" != "0" ]]; then
-    bashelliteUsage;
+    bashelliteUsage FAIL;
     utilMsg FAIL "$(utilTime)" "The flags -a and -r are mutually exclusive. Use one or the other; exiting.\n";
+    return 1;
   fi
 
 }
@@ -321,7 +339,9 @@ bashelliteCallProvider() {
 
   # Sources appropriate bashellite provider_wrapper function based on inputs
   source ${_r_providers_tld}/${_n_repo_provider}/provider_wrapper.sh;
+  # Finds first function defined in the sourced provider_wrapper file; function must use "funcname() {" format to define function
   local provider_wrapper="$(grep -oP "[a-zA-Z_]+?(?=(\(\)\s*\{))" ${_r_providers_tld}/${_n_repo_provider}/provider_wrapper.sh | head -n 1)";
+  # Ensures a valid function name was actually parsed/set, and then executes the function (if set) or returns 1 (if not set)
   if [[ "${provider_wrapper}" != "$(grep "${provider_wrapper}" < <(set))" ]]; then
     ${provider_wrapper} || return 1;
   else
@@ -338,12 +358,16 @@ bashelliteGreatSuccess() {
     utilMsg WARN "$(utilTime)" "Bashellite has successfully completed requested task for repo (${_n_repo_name}), but...";
     utilMsg WARN "$(utilTime)" "Please see error log for error details; minor errors detected in this run's error log:";
     utilMsg WARN "$(utilTime)" " errors => /var/log/bashellite/${_n_repo_name}.${_r_datestamp}.${_r_run_id}.error.log"
+    _n_no_repo_dl_errors=false;
+    _n_repo_dl_retry_count=$((_n_repo_dl_retry_count+1));
     echo
   else
     utilMsg INFO "$(utilTime)" "Bashellite has successfully completed requested task for repo (${repo_name})!";
     utilMsg INFO "$(utilTime)" "Please see logs for event details; no errors detected in this run's error log:";
     utilMsg INFO "$(utilTime)" " events => /var/log/bashellite/${_n_repo_name}.${_r_datestamp}.${_r_run_id}.event.log"
+    _n_no_repo_dl_errors=true;
     echo
   fi
 
 }
+
