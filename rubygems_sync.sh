@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ###
-# This script requires a config file to be specified that contains a YAML
-# list with dictionary configuration values.  This script must be placed in the
+# This script dynamically creates a config file that contains a YAML
+# list with dictionary configuration values.  This config file will be placed in the
 # ~/.gem/.mirrorrc
 # format: 
 # ---
@@ -13,11 +13,11 @@
 #   delete: <boolean to determine whether to delete gems that aren't upstream that are local>
 #   skiperror: <boolean to determine whether to continue past errors>
 ###
-# Example conf file:
+# Example conf file that will be used:
 ###
 # ---
 # - from: http://rubygems.org
-#   to: /data/rubygems
+#   to: /<mirror_tld>/<repo_name>
 #   parallelism: 10
 #   retries: 3
 #   delete: false 
@@ -131,10 +131,13 @@ Usage() {
   echo "       [-m mirror_top-level_directory]"
   echo "       [-h]"
   echo "       [-r repository_name]"
+  #echo "       [-c]"
+  echo
   echo "       Required Parameter(s):"
   echo "       -m:  Sets a temporary disk mirror top-level directory."
   echo "            Only absolute (full) paths are accepted!"
   echo "       -r:  The repo name to sync."
+  #echo "       -c:  The config file to use."
   echo "       Optional Parameter(s):"
   echo "       -h:  Prints this usage message."
 }
@@ -150,7 +153,7 @@ Parse_parameters() {
   unset mirror_tld;
   unset repo_name;
   unset dryrun;
-#  unset config_file;
+  #unset config_file;
 #  unset site_name;
 
   mirror_tld=$(pwd)
@@ -166,6 +169,9 @@ Parse_parameters() {
         # Sanitizes the directory name of spaces or any other undesired characters.
 	      repo_name="${OPTARG//[^a-zA-Z1-9_-]}";
 	      ;;
+      #c)
+      #  config_file="${OPTARG}";
+      #  ;;
       h)
         Usage;
         exit 0;
@@ -239,6 +245,19 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
+  mirror_file="${HOME}/.gem/.mirrorrc"
+  Info "Copying config contents to ~/.gem/.mirrorrc"
+  if [[ ! -d "${HOME}/.gem" ]]; then
+    mkdir ${HOME}/.gem
+  fi
+  echo "---" > ${mirror_file}
+  echo "- from: http://rubygems.org" >> ${mirror_file}
+  echo "  to: ${mirror_tld}/${repo_name}" >> ${mirror_file}
+  echo "  parallelism: 10" >> ${mirror_file}
+  echo "  retries: 10" >> ${mirror_file}
+  echo "  delete: false" >> ${mirror_file}
+  echo "  skiperror: true" >> ${mirror_file}
+  echo "..." >> ${mirror_file}
   Info "Downloading gems from gem server"
   gem mirror
 }
