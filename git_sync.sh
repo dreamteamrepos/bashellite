@@ -47,7 +47,8 @@ Check_deps() {
              cat \
              sed \
              ln \
-             tee;
+             tee \
+             git;
   do
     which ${dep} &>/dev/null \
       || { echo "[FAIL] Dependency (${dep}) missing!"; exit 1; };
@@ -119,7 +120,7 @@ Usage() {
   echo "Usage: $(basename ${0}) v${script_version}"
   echo "       [-m mirror_top-level_directory]"
   echo "       [-h]"
-  echo "       [-d]"
+  #echo "       [-d]"
   echo "       [-r repository_name]"
   echo
   echo
@@ -130,9 +131,9 @@ Usage() {
   echo "       -c:  The config file that has the filter of images to download"
   echo "       Optional Parameter(s):"
   echo "       -h:  Prints this usage message."
-  echo "       -d:  Dry-run mode. Pulls down a listing of the files and"
-  echo "            directories it would download, and then exits."
-  echo "       -s:  An optional site name to pull images from.  Default is: index.docker.io"
+  #echo "       -d:  Dry-run mode. Pulls down a listing of the files and"
+  #echo "            directories it would download, and then exits."
+  #echo "       -s:  An optional site name to pull images from.  Default is: index.docker.io"
 }
 
 # This function parses the parameters passed over the command-line by the user.
@@ -145,15 +146,15 @@ Parse_parameters() {
   # This section unsets some variables, just in case.
   unset mirror_tld;
   unset repo_name;
-  unset dryrun;
+  #unset dryrun;
   unset config_file;
-  unset site_name;
+  #unset site_name;
 
   mirror_tld=$(pwd)
-  site_name="index.docker.io"
+  #site_name="index.docker.io"
 
   # Bash-builtin getopts is used to perform parsing, so no long options are used.
-  while getopts ":m:r:c:s:hd" passed_parameter; do
+  while getopts ":m:r:c:h" passed_parameter; do
    case "${passed_parameter}" in
       m)
         mirror_tld="${OPTARG}";
@@ -162,15 +163,15 @@ Parse_parameters() {
         # Sanitizes the directory name of spaces or any other undesired characters.
 	      repo_name="${OPTARG//[^a-zA-Z1-9_-]}";
 	      ;;
-      d)
-        dryrun=true;
-        ;;
+      #d)
+      #  dryrun=true;
+      #  ;;
       c)
         config_file="${OPTARG}";
         ;;
-      s)
-        site_name="${OPTARG}";
-        ;;
+      #s)
+      #  site_name="${OPTARG}";
+      #  ;;
       h)
         Usage;
         exit 0;
@@ -244,23 +245,17 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
-  image_name_array=()
 
   for line in $(cat ${config_file}); do
     # Check to see if tags are listed
-    tag_index=0
-    tag_index=`expr index "${line}" ':'`
-    tags_found=""
-    tags_found="${line:${tag_index}}"
-    docker_registry_url="${site_name}"    
-    if [[ ${tag_index} == 0 ]]; then
+    #tag_index=0
+    #tag_index=`expr index "${line}" ':'`
+    #tags_found=""
+    #tags_found="${line:${tag_index}}"    
+    #if [[ ${tag_index} == 0 ]]; then
       # No tags found, downloading latest tag for image
-      Info "Pulling latest tag for image: ${line}"
-      Info "Command: docker pull ${docker_registry_url}/${line}:latest"
-      if [[ ${dryrun} == "" ]]; then
-        # Only pull if not a dry run
-        docker pull ${docker_registry_url}/${line}:latest
-      fi
+    #  Info "Pulling latest tag for image: ${line}"
+    #  Info "Command: docker pull ${docker_registry_url}/${line}:latest"
 
       # Add image to array for later removal
       image_name_array+=( "${line}:latest" )
