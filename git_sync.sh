@@ -2,18 +2,15 @@
 
 ###
 # This script requires a config file to be specified that contains a listing of 
-# of images and/or images+tags to download.  Each line can consist of the following 
-# format: <image name> or <image name>:<list of comma separated tags> or 
-#         <user>/<image name> or <user>/<image name>:<list of comma separated tags>
-# Ex: mysql - This will download the latest tagged image for mysql
-#     mysql:5.5,5.6 - This will download tags 5.5 and 5.6 for mysql
-#     remnut/metasploit - This will download the latest tagged image for remnut/metasploit
+# of git repos to download.  Each line can consist of the following 
+# format: <git repo URL>
+# Ex: https://github.com/afcyber-dream/bashellite.git - This will either clone or pull the latest changes from that git repo.
+#     https://github.com/afcyber-dream/bashellite - This is another way of specifying the previous line.
 ###
 # Example conf file:
 ###
-# mysql
-# mysql:5.5,5.6
-# remnut/metasploit
+# https://github.com/afcyber-dream/bashellite.git
+# https://github.com/afcyber-dream/bashellite-configs
 ###
 
 ### Program Version:
@@ -245,67 +242,21 @@ Validate_repo_framework() {
 
 # This function performs the actual sync of the repository
 Sync_repository() {
-
   for line in $(cat ${config_file}); do
-    # Check to see if tags are listed
-    #tag_index=0
-    #tag_index=`expr index "${line}" ':'`
-    #tags_found=""
-    #tags_found="${line:${tag_index}}"    
-    #if [[ ${tag_index} == 0 ]]; then
-      # No tags found, downloading latest tag for image
-    #  Info "Pulling latest tag for image: ${line}"
-    #  Info "Command: docker pull ${docker_registry_url}/${line}:latest"
+    git_repo_name="${line##*/}"
+    git_repo_dir_name="${git_repo_name//.git}"
+    git_repo_url="${line}"
 
-      # Add image to array for later removal
-      image_name_array+=( "${line}:latest" )
-
-      Info "Saving latest tag for image: ${line}"
-      Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest"
-      if [[ ${dryrun} == "" ]]; then
-        # Only save if not a dry run
-        docker save -o ${mirror_tld}/${mirror_repo_name}/${line}-latest.tar ${line}:latest
-      fi
-    elif [[ ${tag_index} == 1 || ${tags_found} == "" ]]; then
-      Warn "Invalid image/tag format found: ${line}, skipping..."
+    if [[ -d "${mirror_tld}/${repo_name}/${git_repo_dir_name}" ]]; then
+      Info "Pulling any updates from repo: ${git_repo_url}..."
+      cd "${mirror_tld}/${repo_name}/${git_repo_dir_name}"
+      git pull
     else
-      # Tags found
-      Info "Tags found"
-      IFS=$',\n'
-      tags_array=( ${tags_found} )
-      unset IFS
-      image_name=""
-      image_name="${line:0:${tag_index} - 1}"
-      for each_tag in ${tags_array[@]}; do
-        Info "Pulling tag: ${each_tag} for image: ${image_name}"
-        Info "Command: docker pull ${docker_registry_url}/${image_name}:${each_tag}"
-        if [[ ${dryrun} == "" ]]; then
-          #only pull if not a dry run
-          docker pull ${docker_registry_url}/${image_name}:${each_tag}
-        fi
-
-        # Add image to array for later removal
-        image_name_array+=( "${image_name}:${each_tag}" )
-
-        Info "Saving tag: ${each_tag} for image: ${image_name}"
-        Info "Command: docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}"
-        if [[ ${dryrun} == "" ]]; then
-          # Only save if not a dry run
-          docker save -o ${mirror_tld}/${mirror_repo_name}/${image_name}-${each_tag}.tar ${image_name}:${each_tag}
-        fi
-      done
+      Info "New repo detected, cloning repo: ${git_repo_url}..."
+      cd "${mirror_tld}/${repo_name}"
+      git clone "${git_repo_url}"
     fi
   done
-  Info "Removing images pulled to local docker..."
-  for line in ${image_name_array[@]}; do
-    Info "Removing image: ${line} from local docker"
-    Info "Command: docker rmi ${line}"
-    if [[ ${dryrun} == "" ]]; then
-      # Only remove if not a dry run
-      docker rmi ${line}
-    fi
-  done
-  unset docker_registry_url;
 }
 
 ################################################################################
