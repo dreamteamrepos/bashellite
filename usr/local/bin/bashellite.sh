@@ -93,7 +93,7 @@ done 1> >(tee -a ${_r_log_dir}/_setup_.${_r_datestamp}.${_r_run_id}.event.log >&
 for repo_name in ${_gr_repo_name_array[@]}; do
 
   _n_repo_name="${repo_name}";
-  _n_mirror_repo_name="${_n_repo_name//__/\/}";
+  _n_mirror_repo_name="${_n_repo_name//__//}";
   _n_no_repo_dl_errors=false;
   _n_repo_dl_retry_count=0;
 
