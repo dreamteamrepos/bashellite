@@ -17,6 +17,7 @@ useradd:
 	# Ensures bashellite user exists
 	getent passwd bashellite || useradd -c "Bashellite User" bashellite;
 	install -o bashellite -g bashellite -m 0644 -D ../home/bashellite/.bashrc $(DESTDIR)$(HOMEDIR)/.bashrc
+	install -o bashellite -g bashellite -m 0744 -d $(DESTDIR)$(HOMEDIR)/.bashellite
 
 install: export providers_tld=$(PROVIDERDIR)
 install: export bin_dir=$(BINDIR)
