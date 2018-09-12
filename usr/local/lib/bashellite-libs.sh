@@ -135,7 +135,7 @@ bashelliteSetup() {
    case "${passed_parameter}" in
       m)
         # Variable initialized here, but finalized below case statement
-        local mirror_tld="${OPTARG}";
+        _r_mirror_tld="${OPTARG}";
         ;;
       r)
         # Sanitizes the directory name of spaces or any other undesired characters.
