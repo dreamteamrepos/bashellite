@@ -3,7 +3,7 @@
 ### Program Name: Bashellite
 #
 ### Program Author: Cody Lee Cochran <Cody.L.Cochran@gmail.com>
-### Program Contributors: Eric Lake <EricLake@Gmail.com>, Patrick Chandler <pc.seanmckay@gmail.com>
+### Program Contributors: Eric Lake <EricLake@Gmail.com>, Patrick Chandler <pc.seanmckay@gmail.com>, Anthony Lubrani <anthony.lubrani@gmail.com>
 #
 ### Program Version:
     _r_script_version="0.4.0-beta"
@@ -103,7 +103,7 @@ for repo_name in ${_gr_repo_name_array[@]}; do
     for pass in first second; do
       if [[ ${_n_repo_dl_retry_count} == 0 ]]; then
         utilMsg INFO "$(utilTime)" "Starting Bashellite run (${_r_run_id}) for repo (${repo_name}), ${pass} pass...";
-      else 
+      else
         utilMsg INFO "$(utilTime)" "Starting retry ${_n_repo_dl_retry_count} of Bashellite run (${_r_run_id}) for repo (${repo_name}), ${pass} pass...";
       fi
       if [[ ! -d "${_r_mirror_tld}/${_n_mirror_repo_name}" ]]; then
@@ -114,7 +114,7 @@ for repo_name in ${_gr_repo_name_array[@]}; do
               exit 1
            };
       fi
-    
+
       bashelliteCallProvider \
         || { \
               utilMsg FAIL "$(utilTime)" "Bashellite failed to call requested provider, or provider returned with fatal error code; exiting!";
@@ -127,4 +127,3 @@ for repo_name in ${_gr_repo_name_array[@]}; do
 done
 
 ################################################################################
-
